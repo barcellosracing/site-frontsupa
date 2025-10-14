@@ -1,9 +1,0 @@
-import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js'
-import { Bar } from 'react-chartjs-2'
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
-export default function Reports(){ const [data,setData]=useState({labels:[],datasets:[]}); const [summary,setSummary]=useState({revenue:0,expenses:0,profit:0})
-useEffect(()=>{ load() },[])
-async function load(){ const { data:quotes } = await supabase.from('quotes').select('created_at,total'); const { data:investments } = await supabase.from('investments').select('created_at,amount'); const mapRev={}; (quotes||[]).forEach(q=>{ const m = q.created_at ? q.created_at.slice(0,7) : 'unknown'; mapRev[m] = (mapRev[m]||0) + parseFloat(q.total||0) }); const mapExp={}; (investments||[]).forEach(i=>{ const m = i.created_at ? i.created_at.slice(0,7) : 'unknown'; mapExp[m] = (mapExp[m]||0) + parseFloat(i.amount||0) }); const months = Array.from(new Set([...Object.keys(mapRev), ...Object.keys(mapExp)])).sort(); const rev = months.map(m=>mapRev[m]||0); const exp = months.map(m=>mapExp[m]||0); const profit = months.map((m,idx)=>(rev[idx]||0)-(exp[idx]||0)); setData({ labels: months, datasets: [ { label: 'Receita', data: rev }, { label: 'Despesas', data: exp }, { label: 'Lucro', data: profit } ] }); const totalRev = rev.reduce((a,b)=>a+b,0); const totalExp = exp.reduce((a,b)=>a+b,0); setSummary({ revenue: totalRev, expenses: totalExp, profit: totalRev-totalExp }) }
-return (<div><h2 className="text-2xl font-semibold mb-4">Relatórios</h2><div className="card mb-4"><div className="text-sm">Resumo</div><div className="text-2xl font-bold">Receita: R$ {summary.revenue.toFixed(2)} • Despesas: R$ {summary.expenses.toFixed(2)} • Lucro: R$ {summary.profit.toFixed(2)}</div></div><div className="card"><Bar data={data} /></div></div>) }
