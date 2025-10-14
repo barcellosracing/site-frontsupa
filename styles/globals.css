@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f4f6f8;
+  --card: #ffffff;
+  --muted: #6b7280;
+}
+
+[data-theme='dark'] {
+  --bg: #0b0f12;
+  --card: #0f1720;
+  --muted: #9ca3af;
+}
+
+html, body, #__next {
+  height: 100%;
+}
+body {
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background: var(--bg);
+  color: #111827;
+  background-image: linear-gradient(180deg, rgba(0,0,0,0.02), transparent);
+}
+.container {
+  max-width: 1024px;
+  margin: 0 auto;
+}
+.card {
+  background: var(--card);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+/* Make form text clearly visible */
+input, select, textarea {
+  color: #000 !important;
+}
+button, .btn {
+  color: #000 !important;
+}
+
+/* Dark theme overrides */
+[data-theme='dark'] input, [data-theme='dark'] textarea, [data-theme='dark'] select {
+  color: #e6eef7 !important;
+}
+[data-theme='dark'] button, [data-theme='dark'] .btn {
+  color: #000 !important;
+}
+
+/* small helper */
+.small-muted { color: var(--muted); font-size: 0.9rem; }
+.logo-circle { width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#111827,#374151);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff; }
