@@ -1,105 +1,66 @@
-import { useEffect, useState } from "react";
-import Layout from "../components/Layout";
-import { supabase } from "../lib/supabase";
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import { isAdmin } from '../lib/admin'
 
-export default function Servicos() {
-  const [servicos, setServicos] = useState([]);
-  const [carregando, setCarregando] = useState(true);
-  const [novo, setNovo] = useState({ titulo: "", valor: "", descricao: "" });
-  const [modoCriar, setModoCriar] = useState(false);
+export default function Services(){
+  const [services, setServices] = useState([])
+  const [title, setTitle] = useState('')
+  const [value, setValue] = useState('')
+  const [description, setDescription] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const { user, isAdmin } = supabase.auth.user() || {};
+  useEffect(()=>{ fetchServices() }, [])
 
-  async function carregar() {
-    const { data, error } = await supabase
-      .from("servicos")
-      .select("id, titulo, valor, descricao, created_at")
-      .order("created_at", { ascending: false });
-    if (!error) setServicos(data);
-    setCarregando(false);
+  async function fetchServices(){
+    try{
+      setLoading(true)
+      const { data, error } = await supabase.from('services').select('*').order('created_at', { ascending: false })
+      if (error) { console.error('supabase services', error); setServices([]) } else setServices(data||[])
+    }catch(e){ console.error(e); setServices([]) }finally{ setLoading(false) }
   }
 
-  async function adicionarServico() {
-    setCarregando(true);
-    const { error } = await supabase.from("servicos").insert([novo]);
-    if (error) console.error("Erro ao adicionar serviço:", error);
-    setNovo({ titulo: "", valor: "", descricao: "" });
-    setModoCriar(false);
-    carregar();
+  async function add(e){
+    e.preventDefault()
+    if (!isAdmin()){ alert('Apenas admin'); return }
+    try{
+      await supabase.from('services').insert([{ title, value, description, created_at: new Date().toISOString() }])
+      setTitle(''); setValue(''); setDescription('')
+      fetchServices()
+    }catch(e){ console.error(e) }
   }
 
-  useEffect(() => {
-    carregar();
-  }, []);
+  async function remove(id){
+    if (!isAdmin()){ alert('Apenas admin'); return }
+    try{ await supabase.from('services').delete().eq('id', id); fetchServices() }catch(e){ console.error(e) }
+  }
 
   return (
-    <Layout>
-      <div className="p-4 bg-gray-50 min-h-screen">
-        <h1 className="text-xl font-semibold mb-4 text-center">Serviços</h1>
-
-        {carregando && <p className="text-center text-gray-500">Carregando...</p>}
-
-        {!carregando && servicos.length === 0 && (
-          <p className="text-center text-gray-500">Nenhum serviço cadastrado.</p>
-        )}
-
-        <div className="space-y-3">
-          {servicos.map((s) => (
-            <div
-              key={s.id}
-              className="bg-white p-4 rounded-2xl shadow-md hover:shadow-lg transition"
-            >
-              <h2 className="font-semibold text-lg">{s.titulo}</h2>
-              <p className="text-gray-700 text-sm mb-1">{s.descricao}</p>
-              <p className="text-blue-600 font-bold">R$ {s.valor}</p>
-            </div>
-          ))}
-        </div>
-
-        {isAdmin && (
-          <div className="mt-6">
-            {!modoCriar ? (
-              <button
-                onClick={() => setModoCriar(true)}
-                className="w-full bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700 transition"
-              >
-                Novo Serviço
-              </button>
-            ) : (
-              <div className="bg-white p-4 rounded-2xl shadow-md mt-3 space-y-3">
-                <input
-                  type="text"
-                  placeholder="Título"
-                  className="w-full border rounded-xl p-2"
-                  value={novo.titulo}
-                  onChange={(e) => setNovo({ ...novo, titulo: e.target.value })}
-                />
-                <input
-                  type="number"
-                  placeholder="Valor"
-                  className="w-full border rounded-xl p-2"
-                  value={novo.valor}
-                  onChange={(e) => setNovo({ ...novo, valor: e.target.value })}
-                />
-                <textarea
-                  placeholder="Descrição"
-                  className="w-full border rounded-xl p-2"
-                  value={novo.descricao}
-                  onChange={(e) =>
-                    setNovo({ ...novo, descricao: e.target.value })
-                  }
-                />
-                <button
-                  onClick={adicionarServico}
-                  className="w-full bg-green-600 text-white py-2 rounded-xl hover:bg-green-700 transition"
-                >
-                  Salvar Serviço
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-semibold">Serviços</h2>
+        {isAdmin() && <button className="tab-btn">Novo Serviço</button>}
       </div>
-    </Layout>
-  );
+
+      <form onSubmit={add} className="mb-4 card">
+        <div className="mb-2"><label className="block text-sm mb-1">Título</label><input className="w-full p-2 border rounded" value={title} onChange={e=>setTitle(e.target.value)} /></div>
+        <div className="mb-2"><label className="block text-sm mb-1">Valor</label><input className="w-full p-2 border rounded" value={value} onChange={e=>setValue(e.target.value)} /></div>
+        <div className="mb-2"><label className="block text-sm mb-1">Descrição</label><input className="w-full p-2 border rounded" value={description} onChange={e=>setDescription(e.target.value)} /></div>
+        <div><button className="tab-btn" type="submit">Adicionar</button></div>
+      </form>
+
+      {loading ? <div>Carregando...</div> : null}
+
+      <div className="grid gap-2">
+        {services.map(s=>(
+          <div key={s.id} className="card flex justify-between items-center">
+            <div>
+              <div className="font-medium">{s.title}</div>
+              <div className="text-sm small-muted">R$ {s.value} • {s.description}</div>
+            </div>
+            <div>{isAdmin() ? <button className="text-sm" onClick={()=>remove(s.id)}>Excluir</button> : null}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
