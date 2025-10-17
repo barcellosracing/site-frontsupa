@@ -23,7 +23,7 @@ export default function Products(){
     e.preventDefault()
     if (!isAdmin()){ alert('Apenas admin'); return }
     try{
-      await supabase.from('products').insert([{ title, value, description, created_at: new Date().toISOString() }])
+      await supabase.from('products').insert([{ titulo, valor, descricao, created_at: new Date().toISOString() }])
       setTitle(''); setValue(''); setDescription('')
       fetchProducts()
     }catch(e){ console.error(e) }
