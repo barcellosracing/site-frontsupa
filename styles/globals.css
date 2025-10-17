@@ -1,0 +1,167 @@
+@tailwind base; @tailwind components; @tailwind utilities;
+
+/* Industrial theme variables */
+:root{ --bg:#0f1720; --panel:#0b1220; --card:#0f1720; --muted:#9aa4ad; --text:#e6eef7; --accent:#f59e0b; --danger:#ef4444; --success:#22c55e; --info:#3b82f6; }
+[data-theme='light']{ --bg:#f4f6f8; --panel:#ffffff; --card:#ffffff; --muted:#6b7280; --text:#0f1720; --accent:#d97706; --danger:#ef4444; --success:#16a34a; --info:#2563eb; }
+
+html,body,#__next{height:100%}
+body{font-family:Inter, system-ui, -apple-system,'Segoe UI',Roboto,Arial;background:linear-gradient(180deg, rgba(0,0,0,0.04), transparent), var(--bg);color:var(--text);margin:0;padding:0;}
+.container{max-width:1024px;margin:0 auto;padding:0 1rem;}
+.card{background:var(--panel);padding:1rem;border-radius:8px;box-shadow:0 10px 30px rgba(2,6,23,0.5);border:1px solid rgba(255,255,255,0.03);}
+.logo-circle{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#111827,#374151);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:16px}
+.brand-name{font-weight:800;font-size:18px;letter-spacing:0.6px;margin-left:8px;color:var(--accent)}
+.header{background:linear-gradient(90deg,#0b1220,#021224);padding:0.75rem 0;border-bottom:4px solid rgba(255,255,255,0.03);}
+.header-btn{padding:0.35rem 0.6rem;border-radius:6px;font-weight:600;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text);display:inline-flex;align-items:center;justify-content:center}
+.tab-btn{padding:0.45rem 0.65rem;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.03);font-weight:700}
+.tab-btn:hover{background:rgba(255,255,255,0.04)}
+input,textarea,select{color:var(--text) !important;background:transparent;border:1px solid rgba(255,255,255,0.06);padding:0.5rem;border-radius:6px;}
+[data-theme='light'] input,[data-theme='light'] textarea,[data-theme='light'] select{border-color:rgba(15,23,36,0.08);}
+.small-muted{color:var(--muted);font-size:0.9rem;}
+.drawer{position:fixed;top:0;right:0;width:80%;max-width:360px;height:100%;background:var(--panel);box-shadow:-20px 0 60px rgba(2,6,23,0.6);transform:translateX(100%);transition:transform .28s ease;z-index:60;padding:1rem;}
+.drawer.open{transform:translateX(0);}
+.drawer .menu-item{margin:8px 0;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);display:block}
+.drawer .menu-item:hover{background:rgba(255,255,255,0.03)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:50;opacity:0;transition:opacity .2s ease;}
+.overlay.show{opacity:1;}
+.mobile-hide{display:none;}
+@media(min-width:641px){ .mobile-hide{display:block;} .mobile-trigger{display:none;} .drawer{display:none} .overlay{display:none} }
+.chart-wrap{height:280px;}
+.filter-line{display:flex;gap:8px;align-items:center}
+a{color:var(--accent);text-decoration:none}
+
+
+/* Barcellos Racing Next.js Theme */
+
+:root {
+  --color-bg: #000;
+  --color-accent: #e50914;
+  --color-accent-light: #ff4c4c;
+  --color-text: #f5f5f5;
+  --color-muted: #bdbdbd;
+  --radius: 10px;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Roboto Condensed', 'Oswald', sans-serif;
+}
+
+/* HEADER */
+header, .header {
+  background: #000;
+  border-bottom: 2px solid var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  box-shadow: 0 3px 10px rgba(229,9,20,0.3);
+}
+
+header img.logo-barcellos {
+  height: 40px;
+  width: auto;
+  margin-right: 8px;
+}
+
+/* BUTTONS */
+button, .btn {
+  background: var(--color-accent);
+  border: none;
+  color: white;
+  font-weight: 600;
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover, .btn:hover {
+  background: var(--color-accent-light);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(229,9,20,0.4);
+}
+
+/* CARDS */
+.card {
+  background: #0a0a0a;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+.card:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-3px);
+}
+.card h3 {
+  color: var(--color-accent-light);
+}
+
+/* TABLES */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #0a0a0a;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+table th, table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+table th {
+  color: var(--color-accent-light);
+  text-transform: uppercase;
+}
+
+/* SIDEBAR */
+.sidebar {
+  background: #0a0a0a !important;
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+.sidebar [data-theme="light"],
+.sidebar .theme-toggle-light {
+  display: none !important; /* remove light theme */
+}
+
+/* CHARTS */
+canvas, .chart-container {
+  background: #000;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: var(--radius);
+}
+
+/* TEXTS */
+h1, h2, h3, h4, h5 {
+  font-weight: 700;
+  color: var(--color-text);
+  text-transform: uppercase;
+}
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--color-accent-light);
+}
+
+/* FOOTER */
+footer {
+  text-align: center;
+  padding: 16px;
+  color: var(--color-muted);
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  header img.logo-barcellos {
+    height: 32px;
+  }
+  button, .btn {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+}
