@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { isAdmin } from '../lib/admin'
 
-// Função auxiliar: últimos 12 meses
+// Gera lista de últimos 12 meses
 function ultimos12Meses() {
   const res = []
   const agora = new Date()
@@ -65,7 +65,7 @@ export default function Orcamentos() {
       tipo: tipoAtual,
       id: itemSelecionado,
       nome: origem.titulo,
-      preco: parseFloat(origem.valor || 0),
+      valor: parseFloat(origem.valor || 0),
       qtd: parseInt(quantidade || 1, 10)
     }
 
@@ -93,7 +93,7 @@ export default function Orcamentos() {
       return
     }
 
-    const total = itens.reduce((s, it) => s + it.preco * it.qtd, 0)
+    const total = itens.reduce((s, it) => s + it.valor * it.qtd, 0)
     const created_at = new Date().toISOString()
 
     const { data: orcamento, error } = await supabase
@@ -109,10 +109,10 @@ export default function Orcamentos() {
 
     const itensFormatados = itens.map(it => ({
       orcamento_id: orcamento.id,
-      item_tipo: it.tipo === 'produto' ? 'product' : 'service', // 👈 fix para constraint
+      item_tipo: it.tipo === 'produto' ? 'product' : 'service', // para respeitar a constraint
       item_id: it.id,
       quantidade: it.qtd,
-      preco: it.preco,
+      valor: it.valor,
       created_at
     }))
 
@@ -244,7 +244,7 @@ export default function Orcamentos() {
                       </span>
                     </div>
                     <div className="text-sm small-muted">
-                      Qtd: {it.qtd} • R$ {it.preco}
+                      Qtd: {it.qtd} • R$ {it.valor}
                     </div>
                   </div>
                   <div>
@@ -256,7 +256,7 @@ export default function Orcamentos() {
               ))}
             </div>
             <div className="mt-3 text-right small-muted">
-              Total parcial: R$ {itens.reduce((s, it) => s + it.preco * it.qtd, 0).toFixed(2)}
+              Total parcial: R$ {itens.reduce((s, it) => s + it.valor * it.qtd, 0).toFixed(2)}
             </div>
           </div>
 
