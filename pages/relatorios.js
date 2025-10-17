@@ -1,183 +1,137 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js'
-import { Bar } from 'react-chartjs-2'
+import { isAdmin } from '../lib/admin'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
-
-// Gera os últimos 12 meses
-function ultimos12Meses() {
+function gerarUltimos12Meses() {
   const res = []
   const agora = new Date()
   for (let i = 11; i >= 0; i--) {
     const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    const label = d.toLocaleString('pt-BR', { month: 'short', year: 'numeric' })
-    res.push({ key, label })
+    res.push({
+      key: d.toISOString().slice(0, 7),
+      label: d.toLocaleString('pt-BR', { month: 'short', year: 'numeric' }),
+    })
   }
   return res
 }
 
 export default function Relatorios() {
-  const [dadosReceita, setDadosReceita] = useState({ labels: [], datasets: [] })
-  const [dadosDespesa, setDadosDespesa] = useState({ labels: [], datasets: [] })
-  const [dadosLucro, setDadosLucro] = useState({ labels: [], datasets: [] })
-  const [resumo, setResumo] = useState({ receita: 0, despesa: 0, lucro: 0 })
-  const [carregando, setCarregando] = useState(false)
+  const [orcamentos, setOrcamentos] = useState([])
+  const [itens, setItens] = useState([])
+  const [produtos, setProdutos] = useState([])
+  const [servicos, setServicos] = useState([])
+  const [loading, setLoading] = useState(false)
 
-  const meses = ultimos12Meses()
+  const meses = gerarUltimos12Meses()
+  const mesAtual = new Date().toISOString().slice(0, 7)
 
-  useEffect(() => { carregar() }, [])
+  useEffect(() => {
+    carregarDados()
+  }, [])
 
-  async function carregar() {
+  async function carregarDados() {
     try {
-      setCarregando(true)
-
-      // Busca os orçamentos fechados (receitas)
-      const { data: orcamentos, error: erroOrc } = await supabase
-        .from('orcamentos')
-        .select('id, valor, status, created_at')
-        .eq('status', 'fechado') // padronizado em português
-
-      if (erroOrc) console.error('Erro ao buscar orçamentos:', erroOrc)
-
-      // Busca os investimentos (despesas)
-      const { data: investimentos, error: erroInv } = await supabase
-        .from('investments')
-        .select('id, amount, category, created_at')
-
-      if (erroInv) console.error('Erro ao buscar investimentos:', erroInv)
-
-      // Mapeia os meses
-      const receitaMes = {}
-      const despesaMes = {}
-      meses.forEach(m => { receitaMes[m.key] = 0; despesaMes[m.key] = 0 })
-
-      // Soma receitas por mês
-      if (Array.isArray(orcamentos)) {
-        orcamentos.forEach(o => {
-          const data = new Date(o.created_at)
-          const key = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`
-          if (receitaMes[key] !== undefined) {
-            receitaMes[key] += o.valor || 0
-          }
-        })
-      }
-
-      // Soma despesas por mês
-      if (Array.isArray(investimentos)) {
-        investimentos.forEach(inv => {
-          const data = new Date(inv.created_at)
-          const key = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`
-          if (despesaMes[key] !== undefined) {
-            despesaMes[key] += inv.amount || 0
-          }
-        })
-      }
-
-      // Gera dados para os gráficos
-      const receitas = meses.map(m => receitaMes[m.key])
-      const despesas = meses.map(m => despesaMes[m.key])
-      const lucros = meses.map((_, i) => receitas[i] - despesas[i])
-
-      const totalReceita = receitas.reduce((a, b) => a + b, 0)
-      const totalDespesa = despesas.reduce((a, b) => a + b, 0)
-      const totalLucro = totalReceita - totalDespesa
-
-      setResumo({
-        receita: totalReceita,
-        despesa: totalDespesa,
-        lucro: totalLucro
-      })
-
-      setDadosReceita({
-        labels: meses.map(m => m.label),
-        datasets: [
-          {
-            label: 'Receita (Orçamentos Fechados)',
-            data: receitas,
-            backgroundColor: 'rgba(34, 197, 94, 0.6)'
-          }
-        ]
-      })
-
-      setDadosDespesa({
-        labels: meses.map(m => m.label),
-        datasets: [
-          {
-            label: 'Despesas (Investimentos)',
-            data: despesas,
-            backgroundColor: 'rgba(239, 68, 68, 0.6)'
-          }
-        ]
-      })
-
-      setDadosLucro({
-        labels: meses.map(m => m.label),
-        datasets: [
-          {
-            label: 'Lucro',
-            data: lucros,
-            backgroundColor: 'rgba(59, 130, 246, 0.6)'
-          }
-        ]
-      })
-
-    } catch (err) {
-      console.error('Erro ao carregar relatório:', err)
+      setLoading(true)
+      const [{ data: o }, { data: oi }, { data: p }, { data: s }] = await Promise.all([
+        supabase.from('orcamentos').select('*'),
+        supabase.from('orcamento_itens').select('*'),
+        supabase.from('produtos').select('*'),
+        supabase.from('servicos').select('*'),
+      ])
+      setOrcamentos(o || [])
+      setItens(oi || [])
+      setProdutos(p || [])
+      setServicos(s || [])
+    } catch (e) {
+      console.error('Erro ao buscar dados:', e)
     } finally {
-      setCarregando(false)
+      setLoading(false)
     }
   }
 
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Relatórios Financeiros</h1>
+  // 🧮 Totais do mês atual
+  const orcamentosMes = orcamentos.filter(o => o.created_at?.slice(0, 7) === mesAtual)
+  const totalOrcamentosMes = orcamentosMes.reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0)
 
-      {carregando ? (
-        <p>Carregando dados...</p>
+  const itensMes = itens.filter(i => i.created_at?.slice(0, 7) === mesAtual)
+  const totalProdutosMes = itensMes
+    .filter(i => i.item_tipo === 'product')
+    .reduce((acc, i) => acc + (parseFloat(i.valor) || 0) * (parseInt(i.quantidade) || 1), 0)
+  const totalServicosMes = itensMes
+    .filter(i => i.item_tipo === 'service')
+    .reduce((acc, i) => acc + (parseFloat(i.valor) || 0) * (parseInt(i.quantidade) || 1), 0)
+
+  // 📊 Dados para o gráfico
+  const dadosGrafico = meses.map(m => {
+    const mesItens = itens.filter(i => i.created_at?.slice(0, 7) === m.key)
+    const totalP = mesItens
+      .filter(i => i.item_tipo === 'product')
+      .reduce((acc, i) => acc + (parseFloat(i.valor) || 0) * (parseInt(i.quantidade) || 1), 0)
+    const totalS = mesItens
+      .filter(i => i.item_tipo === 'service')
+      .reduce((acc, i) => acc + (parseFloat(i.valor) || 0) * (parseInt(i.quantidade) || 1), 0)
+    const totalO = orcamentos
+      .filter(o => o.created_at?.slice(0, 7) === m.key)
+      .reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0)
+    return {
+      mes: m.label,
+      produtos: totalP,
+      servicos: totalS,
+      orcamentos: totalO,
+    }
+  })
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-semibold">Relatórios</h2>
+        {isAdmin() && <span className="text-sm text-gray-500">Modo Administrador</span>}
+      </div>
+
+      {loading ? (
+        <div>Carregando dados...</div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-green-100 p-4 rounded-lg shadow text-center">
-              <h2 className="text-lg font-semibold text-green-700">Receita Total</h2>
-              <p className="text-2xl font-bold text-green-800">
-                R${resumo.receita.toFixed(2)}
-              </p>
+          {/* 🧾 Cards de totais do mês */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            <div className="card p-4 text-center">
+              <div className="text-sm text-gray-500 mb-1">Produtos (mês atual)</div>
+              <div className="text-xl font-semibold text-green-600">
+                R$ {totalProdutosMes.toFixed(2)}
+              </div>
             </div>
-
-            <div className="bg-red-100 p-4 rounded-lg shadow text-center">
-              <h2 className="text-lg font-semibold text-red-700">Despesas Totais</h2>
-              <p className="text-2xl font-bold text-red-800">
-                R${resumo.despesa.toFixed(2)}
-              </p>
+            <div className="card p-4 text-center">
+              <div className="text-sm text-gray-500 mb-1">Serviços (mês atual)</div>
+              <div className="text-xl font-semibold text-blue-600">
+                R$ {totalServicosMes.toFixed(2)}
+              </div>
             </div>
-
-            <div className="bg-blue-100 p-4 rounded-lg shadow text-center">
-              <h2 className="text-lg font-semibold text-blue-700">Lucro Total</h2>
-              <p className="text-2xl font-bold text-blue-800">
-                R${resumo.lucro.toFixed(2)}
-              </p>
+            <div className="card p-4 text-center">
+              <div className="text-sm text-gray-500 mb-1">Orçamentos (mês atual)</div>
+              <div className="text-xl font-semibold text-purple-600">
+                R$ {totalOrcamentosMes.toFixed(2)}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <Bar data={dadosReceita} />
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <Bar data={dadosDespesa} />
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <Bar data={dadosLucro} />
+          {/* 📈 Gráfico de barras */}
+          <div className="card p-4">
+            <h3 className="text-lg font-semibold mb-3 text-center">
+              Desempenho dos últimos 12 meses
+            </h3>
+            <div className="w-full h-72">
+              <ResponsiveContainer>
+                <BarChart data={dadosGrafico} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="produtos" fill="#16a34a" name="Produtos" />
+                  <Bar dataKey="servicos" fill="#2563eb" name="Serviços" />
+                  <Bar dataKey="orcamentos" fill="#9333ea" name="Orçamentos" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </>
