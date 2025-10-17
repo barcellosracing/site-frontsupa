@@ -1,122 +1,187 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js'
 import { Bar } from 'react-chartjs-2'
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
-function last12MonthsArray(){
+// Gera os últimos 12 meses
+function ultimos12Meses() {
   const res = []
-  const now = new Date()
-  for (let i = 11; i >= 0; i--){
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
-    const label = d.toLocaleString(undefined, { month: 'short', year: 'numeric' })
+  const agora = new Date()
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const label = d.toLocaleString('pt-BR', { month: 'short', year: 'numeric' })
     res.push({ key, label })
   }
   return res
 }
 
-export default function Relatorios(){
-  const [revenueData,setRevenueData]=useState({labels:[], datasets:[]})
-  const [expensesData,setExpensesData]=useState({labels:[], datasets:[]})
-  const [profitData,setProfitData]=useState({labels:[], datasets:[]})
-  const [summary,setSummary]=useState({revenue:0, expenses:0, profit:0})
-  const [loading,setLoading]=useState(false)
-  const months = last12MonthsArray()
+export default function Relatorios() {
+  const [dadosReceita, setDadosReceita] = useState({ labels: [], datasets: [] })
+  const [dadosDespesa, setDadosDespesa] = useState({ labels: [], datasets: [] })
+  const [dadosLucro, setDadosLucro] = useState({ labels: [], datasets: [] })
+  const [resumo, setResumo] = useState({ receita: 0, despesa: 0, lucro: 0 })
+  const [carregando, setCarregando] = useState(false)
 
-  useEffect(()=>{ load() }, [])
+  const meses = ultimos12Meses()
 
-  async function load(){
-    try{
-      setLoading(true)
-      // fetch closed budgets (orcamentos) and investments
-      const { data: budgets, error: bError } = await supabase
+  useEffect(() => { carregar() }, [])
+
+  async function carregar() {
+    try {
+      setCarregando(true)
+
+      // Busca os orçamentos fechados (receitas)
+      const { data: orcamentos, error: erroOrc } = await supabase
         .from('orcamentos')
-        .select('id,valor,status,created_at')
-        .eq('status', 'fechado') // adjust if your status uses different casing
-      if (bError) console.error('supabase budgets error', bError)
+        .select('id, valor, status, created_at')
+        .eq('status', 'fechado') // padronizado em português
 
-      const { data: investments, error: iError } = await supabase
+      if (erroOrc) console.error('Erro ao buscar orçamentos:', erroOrc)
+
+      // Busca os investimentos (despesas)
+      const { data: investimentos, error: erroInv } = await supabase
         .from('investments')
-        .select('id,amount,category,created_at')
-      if (iError) console.error('supabase investments error', iError)
+        .select('id, amount, category, created_at')
 
-      // prepare mapping month->value
-      const revenueMap = {}
-      const expenseMap = {}
-      months.forEach(m => { revenueMap[m.key]=0; expenseMap[m.key]=0 })
+      if (erroInv) console.error('Erro ao buscar investimentos:', erroInv)
 
-      if (Array.isArray(budgets)){
-        budgets.forEach(b=>{
-          let dateKey = ''
-          if (b.created_at) dateKey = b.created_at.slice(0,7)
-          // try other fields if needed
-          if (!dateKey && b.created_at) {
-            const d = new Date(b.created_at)
-            dateKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+      // Mapeia os meses
+      const receitaMes = {}
+      const despesaMes = {}
+      meses.forEach(m => { receitaMes[m.key] = 0; despesaMes[m.key] = 0 })
+
+      // Soma receitas por mês
+      if (Array.isArray(orcamentos)) {
+        orcamentos.forEach(o => {
+          const data = new Date(o.created_at)
+          const key = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`
+          if (receitaMes[key] !== undefined) {
+            receitaMes[key] += o.valor || 0
           }
-          const val = Number(b.valor ?? b.value ?? 0)
-          if (dateKey in revenueMap) revenueMap[dateKey] += isNaN(val) ? 0 : val
         })
       }
 
-      if (Array.isArray(investments)){
-        investments.forEach(inv=>{
-          let dateKey = ''
-          if (inv.created_at) dateKey = inv.created_at.slice(0,7)
-          if (!dateKey && inv.created_at) {
-            const d = new Date(inv.created_at)
-            dateKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+      // Soma despesas por mês
+      if (Array.isArray(investimentos)) {
+        investimentos.forEach(inv => {
+          const data = new Date(inv.created_at)
+          const key = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`
+          if (despesaMes[key] !== undefined) {
+            despesaMes[key] += inv.amount || 0
           }
-          const val = Number(inv.amount ?? inv.value ?? inv.valor ?? 0)
-          if (dateKey in expenseMap) expenseMap[dateKey] += isNaN(val) ? 0 : val
         })
       }
 
-      const labels = months.map(m=>m.label)
-      const revenueArr = months.map(m=>Number((revenueMap[m.key]||0).toFixed(2)))
-      const expenseArr = months.map(m=>Number((expenseMap[m.key]||0).toFixed(2)))
-      const profitArr = revenueArr.map((r,idx)=>Number((r - expenseArr[idx]).toFixed(2)))
+      // Gera dados para os gráficos
+      const receitas = meses.map(m => receitaMes[m.key])
+      const despesas = meses.map(m => despesaMes[m.key])
+      const lucros = meses.map((_, i) => receitas[i] - despesas[i])
 
-      setRevenueData({
-        labels,
-        datasets: [{ label: 'Receita (R$)', data: revenueArr }]
-      })
-      setExpensesData({
-        labels,
-        datasets: [{ label: 'Despesa (R$)', data: expenseArr }]
-      })
-      setProfitData({
-        labels,
-        datasets: [{ label: 'Lucro (R$)', data: profitArr }]
+      const totalReceita = receitas.reduce((a, b) => a + b, 0)
+      const totalDespesa = despesas.reduce((a, b) => a + b, 0)
+      const totalLucro = totalReceita - totalDespesa
+
+      setResumo({
+        receita: totalReceita,
+        despesa: totalDespesa,
+        lucro: totalLucro
       })
 
-      const totalRevenue = revenueArr.reduce((a,b)=>a+b,0)
-      const totalExpenses = expenseArr.reduce((a,b)=>a+b,0)
-      setSummary({ revenue: totalRevenue, expenses: totalExpenses, profit: totalRevenue - totalExpenses })
-    }catch(e){
-      console.error('Relatorios.load error', e)
-    }finally{
-      setLoading(false)
+      setDadosReceita({
+        labels: meses.map(m => m.label),
+        datasets: [
+          {
+            label: 'Receita (Orçamentos Fechados)',
+            data: receitas,
+            backgroundColor: 'rgba(34, 197, 94, 0.6)'
+          }
+        ]
+      })
+
+      setDadosDespesa({
+        labels: meses.map(m => m.label),
+        datasets: [
+          {
+            label: 'Despesas (Investimentos)',
+            data: despesas,
+            backgroundColor: 'rgba(239, 68, 68, 0.6)'
+          }
+        ]
+      })
+
+      setDadosLucro({
+        labels: meses.map(m => m.label),
+        datasets: [
+          {
+            label: 'Lucro',
+            data: lucros,
+            backgroundColor: 'rgba(59, 130, 246, 0.6)'
+          }
+        ]
+      })
+
+    } catch (err) {
+      console.error('Erro ao carregar relatório:', err)
+    } finally {
+      setCarregando(false)
     }
   }
 
-  const options = { responsive:true, plugins:{ legend:{ display:true }, tooltip:{ enabled:true } }, scales:{ y:{ beginAtZero:true } } }
-
   return (
-    <div>
-      <h2 className="text-2xl font-semibold mb-4">Relatórios</h2>
-      <div className="card mb-4">
-        <div className="text-sm">
-          Mês atual: {months[months.length-1].label} • Receita: R$ {summary.revenue.toFixed(2)} • Despesa: R$ {summary.expenses.toFixed(2)} • Lucro: R$ {summary.profit.toFixed(2)}
-        </div>
-      </div>
-      <div className="grid gap-4">
-        <div className="card"><div className="text-sm mb-2">Receitas (últimos 12 meses)</div><div className="chart-wrap"><Bar data={revenueData} options={options} /></div></div>
-        <div className="card"><div className="text-sm mb-2">Despesas (últimos 12 meses)</div><div className="chart-wrap"><Bar data={expensesData} options={options} /></div></div>
-        <div className="card"><div className="text-sm mb-2">Lucro (últimos 12 meses)</div><div className="chart-wrap"><Bar data={profitData} options={options} /></div></div>
-      </div>
-      {loading ? <div className="mt-4 text-sm">Carregando...</div> : null}
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Relatórios Financeiros</h1>
+
+      {carregando ? (
+        <p>Carregando dados...</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="bg-green-100 p-4 rounded-lg shadow text-center">
+              <h2 className="text-lg font-semibold text-green-700">Receita Total</h2>
+              <p className="text-2xl font-bold text-green-800">
+                R${resumo.receita.toFixed(2)}
+              </p>
+            </div>
+
+            <div className="bg-red-100 p-4 rounded-lg shadow text-center">
+              <h2 className="text-lg font-semibold text-red-700">Despesas Totais</h2>
+              <p className="text-2xl font-bold text-red-800">
+                R${resumo.despesa.toFixed(2)}
+              </p>
+            </div>
+
+            <div className="bg-blue-100 p-4 rounded-lg shadow text-center">
+              <h2 className="text-lg font-semibold text-blue-700">Lucro Total</h2>
+              <p className="text-2xl font-bold text-blue-800">
+                R${resumo.lucro.toFixed(2)}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="bg-white p-4 rounded-lg shadow">
+              <Bar data={dadosReceita} />
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <Bar data={dadosDespesa} />
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <Bar data={dadosLucro} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
