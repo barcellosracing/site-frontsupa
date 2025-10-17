@@ -19,8 +19,6 @@ function gerarUltimos12Meses() {
 export default function Relatorios() {
   const [orcamentos, setOrcamentos] = useState([])
   const [itens, setItens] = useState([])
-  const [produtos, setProdutos] = useState([])
-  const [servicos, setServicos] = useState([])
   const [loading, setLoading] = useState(false)
 
   const meses = gerarUltimos12Meses()
@@ -33,16 +31,12 @@ export default function Relatorios() {
   async function carregarDados() {
     try {
       setLoading(true)
-      const [{ data: o }, { data: oi }, { data: p }, { data: s }] = await Promise.all([
-        supabase.from('orcamentos').select('*'),
+      const [{ data: o }, { data: oi }] = await Promise.all([
+        supabase.from('orcamentos').select('*').eq('status', 'fechado'),
         supabase.from('orcamento_itens').select('*'),
-        supabase.from('produtos').select('*'),
-        supabase.from('servicos').select('*'),
       ])
       setOrcamentos(o || [])
       setItens(oi || [])
-      setProdutos(p || [])
-      setServicos(s || [])
     } catch (e) {
       console.error('Erro ao buscar dados:', e)
     } finally {
@@ -50,7 +44,7 @@ export default function Relatorios() {
     }
   }
 
-  // 🧮 Totais do mês atual
+  // 🧮 Totais do mês atual (apenas orçamentos "fechados")
   const orcamentosMes = orcamentos.filter(o => o.created_at?.slice(0, 7) === mesAtual)
   const totalOrcamentosMes = orcamentosMes.reduce((acc, o) => acc + (parseFloat(o.total) || 0), 0)
 
@@ -62,7 +56,7 @@ export default function Relatorios() {
     .filter(i => i.item_tipo === 'service')
     .reduce((acc, i) => acc + (parseFloat(i.valor) || 0) * (parseInt(i.quantidade) || 1), 0)
 
-  // 📊 Dados para o gráfico
+  // 📊 Dados do gráfico (apenas orçamentos "fechados")
   const dadosGrafico = meses.map(m => {
     const mesItens = itens.filter(i => i.created_at?.slice(0, 7) === m.key)
     const totalP = mesItens
@@ -108,17 +102,17 @@ export default function Relatorios() {
               </div>
             </div>
             <div className="card p-4 text-center">
-              <div className="text-sm text-gray-500 mb-1">Orçamentos (mês atual)</div>
+              <div className="text-sm text-gray-500 mb-1">Orçamentos Fechados (mês atual)</div>
               <div className="text-xl font-semibold text-purple-600">
                 R$ {totalOrcamentosMes.toFixed(2)}
               </div>
             </div>
           </div>
 
-          {/* 📈 Gráfico de barras */}
+          {/* 📈 Gráfico */}
           <div className="card p-4">
             <h3 className="text-lg font-semibold mb-3 text-center">
-              Desempenho dos últimos 12 meses
+              Desempenho (apenas orçamentos fechados)
             </h3>
             <div className="w-full h-72">
               <ResponsiveContainer>
@@ -129,7 +123,7 @@ export default function Relatorios() {
                   <Tooltip />
                   <Bar dataKey="produtos" fill="#16a34a" name="Produtos" />
                   <Bar dataKey="servicos" fill="#2563eb" name="Serviços" />
-                  <Bar dataKey="orcamentos" fill="#9333ea" name="Orçamentos" />
+                  <Bar dataKey="orcamentos" fill="#9333ea" name="Orçamentos Fechados" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
