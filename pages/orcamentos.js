@@ -55,22 +55,19 @@ export default function Orcamentos() {
       alert('Escolha um item.')
       return
     }
-
     const origem = (tipoAtual === 'produto' ? produtos : servicos).find(p => p.id === itemSelecionado)
     if (!origem) {
       alert('Item inválido')
       return
     }
-
-    const item = {
+    const novo = {
       tipo: tipoAtual,
       id: itemSelecionado,
       nome: origem.titulo,
-      preco: parseFloat(origem.valor || 0),
-      qtd: parseInt(quantidade || 1, 10)
+      valor: parseFloat(origem.valor || 0),
+      quantidade: parseInt(quantidade || 1, 10)
     }
-
-    setItens(prev => [...prev, item])
+    setItens(prev => [...prev, novo])
     setItemSelecionado('')
     setQuantidade(1)
   }
@@ -81,27 +78,16 @@ export default function Orcamentos() {
 
   async function salvarOrcamento(e) {
     e.preventDefault()
-    if (!isAdmin()) {
-      alert('Apenas administradores podem criar orçamentos.')
-      return
-    }
+    if (!isAdmin()) { alert('Apenas admin pode criar orçamentos'); return }
+    if (!clienteId) { alert('Selecione um cliente'); return }
+    if (itens.length === 0) { alert('Adicione pelo menos um item'); return }
 
-    if (!clienteId) {
-      alert('Selecione um cliente.')
-      return
-    }
-
-    if (itens.length === 0) {
-      alert('Adicione pelo menos um item.')
-      return
-    }
-
-    const total = itens.reduce((s, it) => s + (it.preco * it.qtd), 0)
-    const criado_em = new Date().toISOString()
+    const total = itens.reduce((s, it) => s + (it.valor * it.quantidade), 0)
+    const created_at = new Date().toISOString()
 
     const { data: orcamento, error } = await supabase
       .from('orcamentos')
-      .insert([{ cliente_id: clienteId, total, status: 'pendente', created_at: criado_em }])
+      .insert([{ cliente_id: clienteId, total, status: 'pendente', created_at }])
       .select()
       .single()
 
@@ -112,11 +98,11 @@ export default function Orcamentos() {
 
     const itensOrcamento = itens.map(it => ({
       orcamento_id: orcamento.id,
-      tipo_item: it.tipo,
+      item_tipo: it.tipo === 'produto' ? 'produto' : 'servico',
       item_id: it.id,
-      quantidade: it.qtd,
-      preco: it.preco,
-      created_at: criado_em
+      quantidade: it.quantidade,
+      valor: it.valor,
+      created_at
     }))
 
     const { error: err2 } = await supabase.from('orcamento_itens').insert(itensOrcamento)
@@ -132,26 +118,19 @@ export default function Orcamentos() {
     alert('Orçamento salvo com sucesso!')
   }
 
-  async function alternarStatus(orc) {
-    if (!isAdmin()) {
-      alert('Apenas administradores.')
-      return
-    }
-
-    const novoStatus = orc.status === 'fechado' ? 'pendente' : 'fechado'
-    const { error } = await supabase.from('orcamentos').update({ status: novoStatus }).eq('id', orc.id)
-    if (error) {
-      alert(error.message)
-      return
-    }
+  async function alternarStatus(o) {
+    if (!isAdmin()) { alert('Apenas admin'); return }
+    const novoStatus = o.status === 'fechado' ? 'pendente' : 'fechado'
+    const { error } = await supabase.from('orcamentos').update({ status: novoStatus }).eq('id', o.id)
+    if (error) { alert(error.message); return }
     buscarTudo()
   }
 
-  const filtrados = orcamentos.filter(o => {
-    const clienteOK = clienteId ? o.cliente_id === clienteId : true
-    const mesOrc = o.created_at ? o.created_at.slice(0, 7) : ''
-    const mesOK = mes ? mesOrc === mes : true
-    return clienteOK && mesOK
+  const filtrados = orcamentos.filter(q => {
+    const mesOrc = q.created_at ? q.created_at.slice(0, 7) : ''
+    const porCliente = clienteId ? q.cliente_id === clienteId : true
+    const porMes = mes ? mesOrc === mes : true
+    return porCliente && porMes
   })
 
   const meses = ultimos12Meses()
@@ -176,9 +155,11 @@ export default function Orcamentos() {
               value={clienteId}
               onChange={e => setClienteId(e.target.value)}
             >
-              <option value=''>Selecione um cliente</option>
+              <option value="">Selecione um cliente</option>
               {clientes.map(c => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
+                <option key={c.id} value={c.id}>
+                  {c.nome} — {c.fone}
+                </option>
               ))}
             </select>
           </div>
@@ -186,8 +167,20 @@ export default function Orcamentos() {
           <div className="mb-2">
             <label className="block text-sm mb-1">Adicionar item</label>
             <div className="flex gap-2 mb-2">
-              <button type="button" className={"tab-btn " + (tipoAtual === 'produto' ? 'bg-opacity-40' : '')} onClick={() => setTipoAtual('produto')}>Produto</button>
-              <button type="button" className={"tab-btn " + (tipoAtual === 'servico' ? 'bg-opacity-40' : '')} onClick={() => setTipoAtual('servico')}>Serviço</button>
+              <button
+                type="button"
+                className={"tab-btn " + (tipoAtual === 'produto' ? 'bg-opacity-40' : '')}
+                onClick={() => setTipoAtual('produto')}
+              >
+                Produto
+              </button>
+              <button
+                type="button"
+                className={"tab-btn " + (tipoAtual === 'servico' ? 'bg-opacity-40' : '')}
+                onClick={() => setTipoAtual('servico')}
+              >
+                Serviço
+              </button>
             </div>
 
             <div className="flex gap-2">
@@ -196,12 +189,13 @@ export default function Orcamentos() {
                 value={itemSelecionado}
                 onChange={e => setItemSelecionado(e.target.value)}
               >
-                <option value=''>Escolha {tipoAtual}</option>
+                <option value="">Escolha {tipoAtual}</option>
                 {(tipoAtual === 'produto' ? produtos : servicos).map(it => (
-                  <option key={it.id} value={it.id}>{it.titulo} — R$ {it.valor}</option>
+                  <option key={it.id} value={it.id}>
+                    {it.titulo} — R$ {it.valor}
+                  </option>
                 ))}
               </select>
-
               <input
                 type="number"
                 min="1"
@@ -209,8 +203,9 @@ export default function Orcamentos() {
                 value={quantidade}
                 onChange={e => setQuantidade(e.target.value)}
               />
-
-              <button type="button" className="tab-btn" onClick={adicionarItemAtual}>Adicionar</button>
+              <button type="button" className="tab-btn" onClick={adicionarItemAtual}>
+                Adicionar
+              </button>
             </div>
           </div>
 
@@ -220,15 +215,21 @@ export default function Orcamentos() {
               {itens.map((it, idx) => (
                 <div key={idx} className="card flex justify-between items-center">
                   <div>
-                    <div className="font-medium">{it.nome} <span className="small-muted">({it.tipo})</span></div>
-                    <div className="text-sm small-muted">Qtd: {it.qtd} • R$ {it.preco}</div>
+                    <div className="font-medium">
+                      {it.nome} <span className="small-muted">({it.tipo})</span>
+                    </div>
+                    <div className="text-sm small-muted">
+                      Qtd: {it.quantidade} • R$ {it.valor}
+                    </div>
                   </div>
-                  <div><button className="text-sm" onClick={() => removerItem(idx)}>Remover</button></div>
+                  <button className="text-sm" type="button" onClick={() => removerItem(idx)}>
+                    Remover
+                  </button>
                 </div>
               ))}
             </div>
             <div className="mt-3 text-right small-muted">
-              Total parcial: R$ {itens.reduce((s, it) => s + (it.preco * it.qtd), 0).toFixed(2)}
+              Total parcial: R$ {itens.reduce((s, it) => s + (it.valor * it.quantidade), 0).toFixed(2)}
             </div>
           </div>
 
@@ -240,12 +241,17 @@ export default function Orcamentos() {
 
       <div className="mb-4 flex gap-2 items-center">
         <select value={clienteId} onChange={e => setClienteId(e.target.value)} className="p-2 border rounded">
-          <option value=''>Todos os clientes</option>
-          {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          <option value="">Todos os clientes</option>
+          {clientes.map(c => (
+            <option key={c.id} value={c.id}>
+              {c.nome}
+            </option>
+          ))}
         </select>
-
         <select value={mes} onChange={e => setMes(e.target.value)} className="p-2 border rounded">
-          {meses.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+          {meses.map(m => (
+            <option key={m.key} value={m.key}>{m.label}</option>
+          ))}
         </select>
       </div>
 
@@ -257,7 +263,7 @@ export default function Orcamentos() {
                 <div className="font-medium">Orçamento: {o.id}</div>
                 <div className="text-sm small-muted">Total: R$ {o.total}</div>
                 <div className="text-xs small-muted">
-                  Criado em: {o.created_at ? new Date(o.created_at).toLocaleString() : ''}
+                  Adicionado: {o.created_at ? new Date(o.created_at).toLocaleString() : ''}
                 </div>
               </div>
               <div>
