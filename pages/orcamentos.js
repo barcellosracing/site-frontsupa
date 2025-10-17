@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { isAdmin } from '../lib/admin'
 
+// Função auxiliar: últimos 12 meses
 function ultimos12Meses() {
   const res = []
   const agora = new Date()
@@ -29,21 +30,17 @@ export default function Orcamentos() {
   const [mes, setMes] = useState(new Date().toISOString().slice(0, 7))
   const [mostrarForm, setMostrarForm] = useState(false)
 
-  useEffect(() => { buscarTudo() }, [])
+  useEffect(() => {
+    buscarTudo()
+  }, [])
 
   async function buscarTudo() {
-    const [
-      { data: orc },
-      { data: cli },
-      { data: prod },
-      { data: serv }
-    ] = await Promise.all([
+    const [{ data: orc }, { data: cli }, { data: prod }, { data: serv }] = await Promise.all([
       supabase.from('orcamentos').select('*').order('created_at', { ascending: false }),
       supabase.from('clientes').select('*'),
       supabase.from('produtos').select('*'),
       supabase.from('servicos').select('*')
     ])
-
     setOrcamentos(orc || [])
     setClientes(cli || [])
     setProdutos(prod || [])
@@ -55,19 +52,24 @@ export default function Orcamentos() {
       alert('Escolha um item.')
       return
     }
-    const origem = (tipoAtual === 'produto' ? produtos : servicos).find(p => p.id === itemSelecionado)
+    const origem =
+      tipoAtual === 'produto'
+        ? produtos.find(p => p.id === itemSelecionado)
+        : servicos.find(s => s.id === itemSelecionado)
     if (!origem) {
-      alert('Item inválido')
+      alert('Item inválido.')
       return
     }
-    const novo = {
+
+    const novoItem = {
       tipo: tipoAtual,
       id: itemSelecionado,
       nome: origem.titulo,
-      valor: parseFloat(origem.valor || 0),
-      quantidade: parseInt(quantidade || 1, 10)
+      preco: parseFloat(origem.valor || 0),
+      qtd: parseInt(quantidade || 1, 10)
     }
-    setItens(prev => [...prev, novo])
+
+    setItens(prev => [...prev, novoItem])
     setItemSelecionado('')
     setQuantidade(1)
   }
@@ -78,11 +80,20 @@ export default function Orcamentos() {
 
   async function salvarOrcamento(e) {
     e.preventDefault()
-    if (!isAdmin()) { alert('Apenas admin pode criar orçamentos'); return }
-    if (!clienteId) { alert('Selecione um cliente'); return }
-    if (itens.length === 0) { alert('Adicione pelo menos um item'); return }
+    if (!isAdmin()) {
+      alert('Apenas administradores podem criar orçamentos.')
+      return
+    }
+    if (!clienteId) {
+      alert('Selecione um cliente.')
+      return
+    }
+    if (itens.length === 0) {
+      alert('Adicione pelo menos um item.')
+      return
+    }
 
-    const total = itens.reduce((s, it) => s + (it.valor * it.quantidade), 0)
+    const total = itens.reduce((s, it) => s + it.preco * it.qtd, 0)
     const created_at = new Date().toISOString()
 
     const { data: orcamento, error } = await supabase
@@ -96,18 +107,19 @@ export default function Orcamentos() {
       return
     }
 
-    const itensOrcamento = itens.map(it => ({
+    const itensFormatados = itens.map(it => ({
       orcamento_id: orcamento.id,
-      item_tipo: it.tipo === 'produto' ? 'produto' : 'servico',
+      item_tipo: it.tipo === 'produto' ? 'product' : 'service', // 👈 fix para constraint
       item_id: it.id,
-      quantidade: it.quantidade,
-      valor: it.valor,
+      quantidade: it.qtd,
+      preco: it.preco,
       created_at
     }))
 
-    const { error: err2 } = await supabase.from('orcamento_itens').insert(itensOrcamento)
-    if (err2) {
-      alert(err2.message)
+    const { error: erroItens } = await supabase.from('orcamento_itens').insert(itensFormatados)
+
+    if (erroItens) {
+      alert(erroItens.message)
       return
     }
 
@@ -119,18 +131,24 @@ export default function Orcamentos() {
   }
 
   async function alternarStatus(o) {
-    if (!isAdmin()) { alert('Apenas admin'); return }
+    if (!isAdmin()) {
+      alert('Apenas admin.')
+      return
+    }
     const novoStatus = o.status === 'fechado' ? 'pendente' : 'fechado'
     const { error } = await supabase.from('orcamentos').update({ status: novoStatus }).eq('id', o.id)
-    if (error) { alert(error.message); return }
+    if (error) {
+      alert(error.message)
+      return
+    }
     buscarTudo()
   }
 
-  const filtrados = orcamentos.filter(q => {
-    const mesOrc = q.created_at ? q.created_at.slice(0, 7) : ''
-    const porCliente = clienteId ? q.cliente_id === clienteId : true
-    const porMes = mes ? mesOrc === mes : true
-    return porCliente && porMes
+  const filtrados = orcamentos.filter(o => {
+    const clienteOk = clienteId ? o.cliente_id === clienteId : true
+    const mesOrc = o.created_at ? o.created_at.slice(0, 7) : ''
+    const mesOk = mes ? mesOrc === mes : true
+    return clienteOk && mesOk
   })
 
   const meses = ultimos12Meses()
@@ -139,11 +157,13 @@ export default function Orcamentos() {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold">Orçamentos</h2>
-        {isAdmin() && (
-          <button className="tab-btn" onClick={() => setMostrarForm(s => !s)}>
-            {mostrarForm ? 'Fechar formulário' : 'Novo Orçamento'}
-          </button>
-        )}
+        <div>
+          {isAdmin() && (
+            <button className="tab-btn" onClick={() => setMostrarForm(s => !s)}>
+              {mostrarForm ? 'Fechar formulário' : 'Novo Orçamento'}
+            </button>
+          )}
+        </div>
       </div>
 
       {mostrarForm && (
@@ -155,10 +175,10 @@ export default function Orcamentos() {
               value={clienteId}
               onChange={e => setClienteId(e.target.value)}
             >
-              <option value="">Selecione um cliente</option>
+              <option value="">Selecione cliente</option>
               {clientes.map(c => (
                 <option key={c.id} value={c.id}>
-                  {c.nome} — {c.fone}
+                  {c.nome}
                 </option>
               ))}
             </select>
@@ -169,15 +189,15 @@ export default function Orcamentos() {
             <div className="flex gap-2 mb-2">
               <button
                 type="button"
-                className={"tab-btn " + (tipoAtual === 'produto' ? 'bg-opacity-40' : '')}
+                className={`tab-btn ${tipoAtual === 'produto' ? 'bg-opacity-40' : ''}`}
                 onClick={() => setTipoAtual('produto')}
               >
                 Produto
               </button>
               <button
                 type="button"
-                className={"tab-btn " + (tipoAtual === 'servico' ? 'bg-opacity-40' : '')}
-                onClick={() => setTipoAtual('servico')}
+                className={`tab-btn ${tipoAtual === 'serviço' ? 'bg-opacity-40' : ''}`}
+                onClick={() => setTipoAtual('serviço')}
               >
                 Serviço
               </button>
@@ -196,6 +216,7 @@ export default function Orcamentos() {
                   </option>
                 ))}
               </select>
+
               <input
                 type="number"
                 min="1"
@@ -203,6 +224,7 @@ export default function Orcamentos() {
                 value={quantidade}
                 onChange={e => setQuantidade(e.target.value)}
               />
+
               <button type="button" className="tab-btn" onClick={adicionarItemAtual}>
                 Adicionar
               </button>
@@ -216,31 +238,42 @@ export default function Orcamentos() {
                 <div key={idx} className="card flex justify-between items-center">
                   <div>
                     <div className="font-medium">
-                      {it.nome} <span className="small-muted">({it.tipo})</span>
+                      {it.nome}{' '}
+                      <span className="small-muted">
+                        ({it.tipo})
+                      </span>
                     </div>
                     <div className="text-sm small-muted">
-                      Qtd: {it.quantidade} • R$ {it.valor}
+                      Qtd: {it.qtd} • R$ {it.preco}
                     </div>
                   </div>
-                  <button className="text-sm" type="button" onClick={() => removerItem(idx)}>
-                    Remover
-                  </button>
+                  <div>
+                    <button className="text-sm" onClick={() => removerItem(idx)}>
+                      Remover
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
             <div className="mt-3 text-right small-muted">
-              Total parcial: R$ {itens.reduce((s, it) => s + (it.valor * it.quantidade), 0).toFixed(2)}
+              Total parcial: R$ {itens.reduce((s, it) => s + it.preco * it.qtd, 0).toFixed(2)}
             </div>
           </div>
 
           <div className="mt-4 flex justify-end">
-            <button className="tab-btn" type="submit">Salvar Orçamento</button>
+            <button className="tab-btn" type="submit">
+              Salvar Orçamento
+            </button>
           </div>
         </form>
       )}
 
       <div className="mb-4 flex gap-2 items-center">
-        <select value={clienteId} onChange={e => setClienteId(e.target.value)} className="p-2 border rounded">
+        <select
+          value={clienteId}
+          onChange={e => setClienteId(e.target.value)}
+          className="p-2 border rounded"
+        >
           <option value="">Todos os clientes</option>
           {clientes.map(c => (
             <option key={c.id} value={c.id}>
@@ -248,9 +281,12 @@ export default function Orcamentos() {
             </option>
           ))}
         </select>
+
         <select value={mes} onChange={e => setMes(e.target.value)} className="p-2 border rounded">
           {meses.map(m => (
-            <option key={m.key} value={m.key}>{m.label}</option>
+            <option key={m.key} value={m.key}>
+              {m.label}
+            </option>
           ))}
         </select>
       </div>
@@ -268,11 +304,11 @@ export default function Orcamentos() {
               </div>
               <div>
                 <div className="text-sm small-muted">Status: {o.status}</div>
-                {isAdmin() && (
+                {isAdmin() ? (
                   <button className="tab-btn mt-2" onClick={() => alternarStatus(o)}>
                     {o.status === 'fechado' ? 'Marcar pendente' : 'Fechar'}
                   </button>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
