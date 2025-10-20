@@ -41,36 +41,39 @@ export default function Layout({ children }) {
     <div className="min-h-screen flex flex-col bg-gray-950 text-white">
       {/* HEADER */}
       <header className="bg-gray-900 border-b border-yellow-600 shadow-lg">
-        <div className="flex items-center justify-between px-4 py-3 max-w-7xl mx-auto">
-          {/* Botão Hamburguer */}
-          <button
-            onClick={openMenu}
-            className="p-2 rounded-md hover:bg-gray-800 transition"
-          >
-            <svg
-              className="w-7 h-7 text-yellow-500"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
+        <div className="flex items-center px-4 py-3 max-w-7xl mx-auto">
+          {/* Grupo: Botão + Logo */}
+          <div className="flex items-center space-x-4">
+            {/* Botão Hamburguer */}
+            <button
+              onClick={openMenu}
+              className="p-2 rounded-md hover:bg-gray-800 transition"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
-          </button>
+              <svg
+                className="w-7 h-7 text-yellow-500"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
+            </button>
 
-          {/* Logo */}
-          <div className="flex items-center gap-2">
-            <Image
-              src="/logo-barcellos.png"
-              alt="Barcellos Motos"
-              width={160}
-              height={50}
-              className="object-contain"
-            />
+            {/* Logo */}
+            <div className="flex items-center">
+              <Image
+                src="/logo-barcellos.png"
+                alt="Barcellos Motos"
+                width={180}
+                height={50}
+                className="object-contain"
+              />
+            </div>
           </div>
         </div>
       </header>
@@ -78,7 +81,7 @@ export default function Layout({ children }) {
       {/* MENU LATERAL */}
       {menuOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-40 flex">
-          <div className="bg-gray-900 w-64 p-4 flex flex-col space-y-4">
+          <div className="bg-gray-900 w-64 p-4 flex flex-col space-y-4 shadow-xl">
             <button
               onClick={closeMenu}
               className="text-right text-gray-400 hover:text-yellow-500"
