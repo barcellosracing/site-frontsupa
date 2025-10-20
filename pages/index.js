@@ -75,16 +75,16 @@ export default function Dashboard() {
         {/* Card Investimentos */}
         <Link href="/investments" className="group">
           <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center transition transform hover:scale-105 hover:shadow-gold cursor-pointer">
-            <div className="text-xl mb-2">💰</div>
-            <div className="text-sm text-yellow-500 font-semibold text-center">Investimentos</div>
+            <div className="text-sm text-yellow-500 font-semibold mb-2 text-center">Investimentos</div>
+            <div className="text-xl">💰</div>
           </div>
         </Link>
 
         {/* Card Relatórios */}
         <Link href="/relatorios" className="group">
           <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center transition transform hover:scale-105 hover:shadow-gold cursor-pointer">
-            <div className="text-xl mb-2">📊</div>
-            <div className="text-sm text-yellow-500 font-semibold text-center">Relatórios</div>
+            <div className="text-sm text-yellow-500 font-semibold mb-2 text-center">Relatórios</div>
+            <div className="text-xl">📊</div>
           </div>
         </Link>
       </div>
