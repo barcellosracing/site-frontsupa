@@ -33,33 +33,33 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto">
       {loading ? (
         <div className="text-center text-gray-400">Carregando...</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Card Clientes */}
-          <div className="bg-gray-900 rounded-2xl shadow-xl p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
-            <div className="text-sm text-gray-400 mb-2">Clientes</div>
-            <div className="text-3xl font-bold text-yellow-500">{clientes.length}</div>
+          <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
+            <div className="text-sm text-yellow-500 mb-2">Clientes</div>
+            <div className="text-4xl font-bold text-white">{clientes.length}</div>
           </div>
 
           {/* Card Produtos */}
-          <div className="bg-gray-900 rounded-2xl shadow-xl p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
-            <div className="text-sm text-gray-400 mb-2">Produtos</div>
-            <div className="text-3xl font-bold text-yellow-500">{produtos.length}</div>
+          <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
+            <div className="text-sm text-yellow-500 mb-2">Produtos</div>
+            <div className="text-4xl font-bold text-white">{produtos.length}</div>
           </div>
 
           {/* Card Serviços */}
-          <div className="bg-gray-900 rounded-2xl shadow-xl p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
-            <div className="text-sm text-gray-400 mb-2">Serviços</div>
-            <div className="text-3xl font-bold text-yellow-500">{servicos.length}</div>
+          <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
+            <div className="text-sm text-yellow-500 mb-2">Serviços</div>
+            <div className="text-4xl font-bold text-white">{servicos.length}</div>
           </div>
 
           {/* Card Orçamentos */}
-          <div className="bg-gray-900 rounded-2xl shadow-xl p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
-            <div className="text-sm text-gray-400 mb-2">Orçamentos</div>
-            <div className="text-3xl font-bold text-yellow-500">{orcamentos.length}</div>
+          <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
+            <div className="text-sm text-yellow-500 mb-2">Orçamentos</div>
+            <div className="text-4xl font-bold text-white">{orcamentos.length}</div>
           </div>
         </div>
       )}
