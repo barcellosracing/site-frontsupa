@@ -40,48 +40,48 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-screen flex flex-col bg-gray-950 text-white">
       {/* HEADER */}
-      <header className="bg-gray-900 border-b border-yellow-600 shadow-lg">
-        <div className="flex items-center px-4 py-3 max-w-7xl mx-auto">
-          {/* Grupo: Botão + Logo */}
-          <div className="flex items-center space-x-4">
-            {/* Botão Hamburguer */}
-            <button
-              onClick={openMenu}
-              className="p-2 rounded-md hover:bg-gray-800 transition"
+      <header className="bg-black border-b border-yellow-600 shadow-lg">
+        <div className="flex items-center justify-between px-4 py-3 max-w-7xl mx-auto">
+          {/* Botão Hamburguer à esquerda */}
+          <button
+            onClick={openMenu}
+            className="p-2 rounded-md hover:bg-gray-800 transition"
+          >
+            <svg
+              className="w-7 h-7 text-yellow-500"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
             >
-              <svg
-                className="w-7 h-7 text-yellow-500"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
-
-            {/* Logo */}
-            <div className="flex items-center">
-              <Image
-                src="/logo-barcellos.png"
-                alt="Barcellos Motos"
-                width={180}
-                height={50}
-                className="object-contain"
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 6h16M4 12h16M4 18h16"
               />
-            </div>
+            </svg>
+          </button>
+
+          {/* Logo centralizada */}
+          <div className="absolute left-1/2 transform -translate-x-1/2">
+            <Image
+              src="/logo-barcellos.png"
+              alt="Barcellos Motos"
+              width={180}
+              height={50}
+              className="object-contain"
+            />
           </div>
+
+          {/* Espaço à direita para manter o botão centralizado */}
+          <div className="w-9"></div>
         </div>
       </header>
 
       {/* MENU LATERAL */}
       {menuOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-40 flex">
-          <div className="bg-gray-900 w-64 p-4 flex flex-col space-y-4 shadow-xl">
+          <div className="bg-black w-64 p-4 flex flex-col space-y-4 shadow-xl">
             <button
               onClick={closeMenu}
               className="text-right text-gray-400 hover:text-yellow-500"
