@@ -85,31 +85,40 @@ export default function Layout({ children }) {
       {/* MENU LATERAL */}
       {menuOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-40 flex">
-          <div className="bg-black w-64 p-4 flex flex-col space-y-4 shadow-xl">
+          <div className="bg-gray-900 w-64 p-6 flex flex-col justify-start space-y-5 shadow-xl rounded-r-xl">
+            {/* Botão fechar */}
             <button
               onClick={closeMenu}
-              className="text-right text-gray-400 hover:text-yellow-500"
+              className="self-end text-gray-400 hover:text-yellow-500 text-2xl font-bold"
             >
               ✕
             </button>
-            <nav className="flex flex-col space-y-3">
-              <Link href="/" onClick={navAndClose} className="hover:text-yellow-500">
+
+            {/* Links do menu */}
+            <nav className="flex flex-col space-y-4 mt-2">
+              <Link href="/" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
                 Início
               </Link>
-              <Link href="/clients" onClick={navAndClose} className="hover:text-yellow-500">
+              <Link href="/clients" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
                 Clientes
               </Link>
-              <Link href="/services" onClick={navAndClose} className="hover:text-yellow-500">
+              <Link href="/services" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
                 Serviços
               </Link>
-              <Link href="/products" onClick={navAndClose} className="hover:text-yellow-500">
+              <Link href="/products" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
                 Produtos
               </Link>
-              <Link href="/orcamentos" onClick={navAndClose} className="hover:text-yellow-500">
+              <Link href="/orcamentos" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
                 Orçamentos
               </Link>
-              <Link href="/relatorios" onClick={navAndClose} className="hover:text-yellow-500">
+              <Link href="/relatorios" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
                 Relatórios
+              </Link>
+              <Link href="/investments" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
+                Investimentos
+              </Link>
+              <Link href="/login" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
+                Login
               </Link>
             </nav>
           </div>
