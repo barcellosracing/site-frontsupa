@@ -7,8 +7,6 @@ export default function Dashboard() {
   const [produtos, setProdutos] = useState([]);
   const [servicos, setServicos] = useState([]);
   const [orcamentos, setOrcamentos] = useState([]);
-  const [investimentos, setInvestimentos] = useState(0); // Exemplo, pode carregar do Supabase
-  const [relatorios, setRelatorios] = useState(0); // Exemplo, pode carregar do Supabase
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,9 +26,6 @@ export default function Dashboard() {
       setProdutos(prod || []);
       setServicos(serv || []);
       setOrcamentos(orc || []);
-      // Exemplo: valores fixos para os novos cards, você pode alterar conforme necessidade
-      setInvestimentos(15);
-      setRelatorios(8);
     } catch (e) {
       console.error("Erro ao carregar dados:", e);
     } finally {
@@ -45,7 +40,7 @@ export default function Dashboard() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="grid grid-cols-2 gap-6">
-        {/* Coluna 1 */}
+        {/* Card Clientes */}
         <Link href="/clients" className="group">
           <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 hover:shadow-gold cursor-pointer">
             <div className="text-sm text-yellow-500 mb-2">Clientes</div>
@@ -53,6 +48,7 @@ export default function Dashboard() {
           </div>
         </Link>
 
+        {/* Card Produtos */}
         <Link href="/products" className="group">
           <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 hover:shadow-gold cursor-pointer">
             <div className="text-sm text-yellow-500 mb-2">Produtos</div>
@@ -60,6 +56,7 @@ export default function Dashboard() {
           </div>
         </Link>
 
+        {/* Card Serviços */}
         <Link href="/services" className="group">
           <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 hover:shadow-gold cursor-pointer">
             <div className="text-sm text-yellow-500 mb-2">Serviços</div>
@@ -67,6 +64,7 @@ export default function Dashboard() {
           </div>
         </Link>
 
+        {/* Card Orçamentos */}
         <Link href="/orcamentos" className="group">
           <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 hover:shadow-gold cursor-pointer">
             <div className="text-sm text-yellow-500 mb-2">Orçamentos</div>
@@ -74,19 +72,19 @@ export default function Dashboard() {
           </div>
         </Link>
 
+        {/* Card Investimentos */}
         <Link href="/investments" className="group">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 hover:shadow-gold cursor-pointer">
-            <div className="text-sm text-yellow-500 mb-1">Investimentos</div>
+          <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center transition transform hover:scale-105 hover:shadow-gold cursor-pointer">
             <div className="text-xl mb-2">💰</div>
-            <div className="text-3xl font-bold text-white">{investimentos}</div>
+            <div className="text-sm text-yellow-500 font-semibold text-center">Investimentos</div>
           </div>
         </Link>
 
+        {/* Card Relatórios */}
         <Link href="/relatorios" className="group">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 hover:shadow-gold cursor-pointer">
-            <div className="text-sm text-yellow-500 mb-1">Relatórios</div>
+          <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center transition transform hover:scale-105 hover:shadow-gold cursor-pointer">
             <div className="text-xl mb-2">📊</div>
-            <div className="text-3xl font-bold text-white">{relatorios}</div>
+            <div className="text-sm text-yellow-500 font-semibold text-center">Relatórios</div>
           </div>
         </Link>
       </div>
