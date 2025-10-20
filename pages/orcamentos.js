@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { isAdmin } from '../lib/admin'
+import { FiPlus, FiX, FiTrash2 } from 'react-icons/fi'
 
 // Gera lista de últimos 12 meses
 function ultimos12Meses() {
@@ -109,7 +110,7 @@ export default function Orcamentos() {
 
     const itensFormatados = itens.map(it => ({
       orcamento_id: orcamento.id,
-      item_tipo: it.tipo === 'produto' ? 'product' : 'service', // para respeitar a constraint
+      item_tipo: it.tipo === 'produto' ? 'product' : 'service',
       item_id: it.id,
       quantidade: it.qtd,
       valor: it.valor,
@@ -154,121 +155,138 @@ export default function Orcamentos() {
   const meses = ultimos12Meses()
 
   return (
-    <div>
+    <div className="relative">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold">Orçamentos</h2>
-        <div>
-          {isAdmin() && (
-            <button className="tab-btn" onClick={() => setMostrarForm(s => !s)}>
-              {mostrarForm ? 'Fechar formulário' : 'Novo Orçamento'}
-            </button>
-          )}
-        </div>
       </div>
 
+      {isAdmin() && (
+        <button
+          onClick={() => setMostrarForm(s => !s)}
+          className="fixed bottom-6 right-6 bg-blue-600 text-white rounded-full p-3 shadow-lg hover:bg-blue-700 transition-all"
+        >
+          {mostrarForm ? <FiX size={22} /> : <FiPlus size={22} />}
+        </button>
+      )}
+
       {mostrarForm && (
-        <form onSubmit={salvarOrcamento} className="mb-4 card">
-          <div className="mb-2">
-            <label className="block text-sm mb-1">Cliente</label>
-            <select
-              className="w-full p-2 border rounded"
-              value={clienteId}
-              onChange={e => setClienteId(e.target.value)}
-            >
-              <option value="">Selecione cliente</option>
-              {clientes.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-2">
-            <label className="block text-sm mb-1">Adicionar item</label>
-            <div className="flex gap-2 mb-2">
-              <button
-                type="button"
-                className={`tab-btn ${tipoAtual === 'produto' ? 'bg-opacity-40' : ''}`}
-                onClick={() => setTipoAtual('produto')}
-              >
-                Produto
-              </button>
-              <button
-                type="button"
-                className={`tab-btn ${tipoAtual === 'serviço' ? 'bg-opacity-40' : ''}`}
-                onClick={() => setTipoAtual('serviço')}
-              >
-                Serviço
-              </button>
-            </div>
-
-            <div className="flex gap-2">
+        <form
+          onSubmit={salvarOrcamento}
+          className="mb-6 card p-4 border border-gray-200 rounded-xl shadow-md animate-fade-in"
+        >
+          <h3 className="text-lg font-semibold mb-3">Novo Orçamento</h3>
+          <div className="grid gap-3">
+            <div>
+              <label className="block text-sm mb-1">Cliente</label>
               <select
-                className="flex-1 p-2 border rounded"
-                value={itemSelecionado}
-                onChange={e => setItemSelecionado(e.target.value)}
+                className="w-full p-2 border rounded"
+                value={clienteId}
+                onChange={e => setClienteId(e.target.value)}
               >
-                <option value="">Escolha {tipoAtual}</option>
-                {(tipoAtual === 'produto' ? produtos : servicos).map(it => (
-                  <option key={it.id} value={it.id}>
-                    {it.titulo} — R$ {it.valor}
+                <option value="">Selecione cliente</option>
+                {clientes.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
                   </option>
                 ))}
               </select>
+            </div>
 
-              <input
-                type="number"
-                min="1"
-                className="w-24 p-2 border rounded"
-                value={quantidade}
-                onChange={e => setQuantidade(e.target.value)}
-              />
+            <div>
+              <label className="block text-sm mb-1">Adicionar item</label>
+              <div className="flex gap-2 mb-2">
+                <button
+                  type="button"
+                  className={`tab-btn ${tipoAtual === 'produto' ? 'bg-blue-100' : ''}`}
+                  onClick={() => setTipoAtual('produto')}
+                >
+                  Produto
+                </button>
+                <button
+                  type="button"
+                  className={`tab-btn ${tipoAtual === 'serviço' ? 'bg-blue-100' : ''}`}
+                  onClick={() => setTipoAtual('serviço')}
+                >
+                  Serviço
+                </button>
+              </div>
 
-              <button type="button" className="tab-btn" onClick={adicionarItemAtual}>
-                Adicionar
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 p-2 border rounded"
+                  value={itemSelecionado}
+                  onChange={e => setItemSelecionado(e.target.value)}
+                >
+                  <option value="">Escolha {tipoAtual}</option>
+                  {(tipoAtual === 'produto' ? produtos : servicos).map(it => (
+                    <option key={it.id} value={it.id}>
+                      {it.titulo} — R$ {it.valor}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="number"
+                  min="1"
+                  className="w-24 p-2 border rounded"
+                  value={quantidade}
+                  onChange={e => setQuantidade(e.target.value)}
+                />
+
+                <button
+                  type="button"
+                  className="tab-btn"
+                  onClick={adicionarItemAtual}
+                >
+                  Adicionar
+                </button>
+              </div>
+            </div>
+
+            {itens.length > 0 && (
+              <div className="mt-2">
+                <div className="text-sm font-medium mb-1">Itens adicionados</div>
+                <div className="grid gap-2">
+                  {itens.map((it, idx) => (
+                    <div
+                      key={idx}
+                      className="flex justify-between items-center p-2 bg-gray-50 rounded border"
+                    >
+                      <div>
+                        <div className="font-medium">
+                          {it.nome}{' '}
+                          <span className="text-gray-500 text-sm">({it.tipo})</span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Qtd: {it.qtd} • R$ {it.valor}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-red-500 hover:text-red-700"
+                        onClick={() => removerItem(idx)}
+                      >
+                        <FiTrash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 text-right text-sm text-gray-600">
+                  Total parcial: R$ {itens.reduce((s, it) => s + it.valor * it.qtd, 0).toFixed(2)}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-3 flex justify-end">
+              <button className="tab-btn" type="submit">
+                Salvar Orçamento
               </button>
             </div>
-          </div>
-
-          <div className="mt-4">
-            <div className="text-sm mb-2">Itens do orçamento</div>
-            <div className="grid gap-2">
-              {itens.map((it, idx) => (
-                <div key={idx} className="card flex justify-between items-center">
-                  <div>
-                    <div className="font-medium">
-                      {it.nome}{' '}
-                      <span className="small-muted">
-                        ({it.tipo})
-                      </span>
-                    </div>
-                    <div className="text-sm small-muted">
-                      Qtd: {it.qtd} • R$ {it.valor}
-                    </div>
-                  </div>
-                  <div>
-                    <button className="text-sm" onClick={() => removerItem(idx)}>
-                      Remover
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 text-right small-muted">
-              Total parcial: R$ {itens.reduce((s, it) => s + it.valor * it.qtd, 0).toFixed(2)}
-            </div>
-          </div>
-
-          <div className="mt-4 flex justify-end">
-            <button className="tab-btn" type="submit">
-              Salvar Orçamento
-            </button>
           </div>
         </form>
       )}
 
-      <div className="mb-4 flex gap-2 items-center">
+      <div className="mb-4 flex flex-wrap gap-2 items-center">
         <select
           value={clienteId}
           onChange={e => setClienteId(e.target.value)}
@@ -293,23 +311,23 @@ export default function Orcamentos() {
 
       <div className="grid gap-3">
         {filtrados.map(o => (
-          <div key={o.id} className="card">
+          <div key={o.id} className="card border rounded-xl shadow-sm p-4 hover:shadow-md transition">
             <div className="flex justify-between items-center">
               <div>
-                <div className="font-medium">Orçamento: {o.id}</div>
-                <div className="text-sm small-muted">Total: R$ {o.total}</div>
-                <div className="text-xs small-muted">
-                  Adicionado: {o.created_at ? new Date(o.created_at).toLocaleString() : ''}
+                <div className="font-medium text-lg">Orçamento #{o.id}</div>
+                <div className="text-sm text-gray-600">Total: R$ {o.total}</div>
+                <div className="text-xs text-gray-500">
+                  {o.created_at ? new Date(o.created_at).toLocaleString() : ''}
                 </div>
               </div>
-              <div>
-                <div className="text-sm small-muted">Status: {o.status}</div>
-                {isAdmin() ? (
-                  <button className="tab-btn mt-2" onClick={() => alternarStatus(o)}>
-                    {o.status === 'fechado' ? 'Marcar pendente' : 'Fechar'}
-                  </button>
-                ) : null}
-              </div>
+              {isAdmin() && (
+                <button
+                  className={`tab-btn ${o.status === 'fechado' ? 'bg-green-600' : 'bg-yellow-500'}`}
+                  onClick={() => alternarStatus(o)}
+                >
+                  {o.status === 'fechado' ? 'Reabrir' : 'Fechar'}
+                </button>
+              )}
             </div>
           </div>
         ))}
