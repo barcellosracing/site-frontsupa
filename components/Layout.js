@@ -118,7 +118,7 @@ export default function Layout({ children }) {
 
       {/* RODAPÉ */}
       <footer className="bg-gray-900 border-t border-yellow-600 text-center text-gray-400 py-3 text-sm">
-        © {new Date().getFullYear()} Barcellos Motos — Todos os direitos reservados
+        © {new Date().getFullYear()} Barcellos Racing — Todos os direitos reservados
       </footer>
     </div>
   );
