@@ -93,10 +93,10 @@ export default function Clientes() {
         {isAdmin() && (
           <button
             onClick={() => setMostrarForm(!mostrarForm)}
-            className="flex items-center gap-2 bg-yellow-500 text-black font-medium px-4 py-2 rounded-lg shadow hover:bg-yellow-400 transition-all"
+            className="p-2 rounded-full bg-yellow-500 text-black hover:bg-yellow-400 transition-all shadow-lg border border-yellow-600"
+            title={mostrarForm ? "Cancelar" : "Cadastrar Cliente"}
           >
-            <FiUserPlus />
-            {mostrarForm ? "Cancelar" : "Cadastrar Cliente"}
+            <FiUserPlus className="w-5 h-5" />
           </button>
         )}
       </div>
