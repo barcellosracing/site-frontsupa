@@ -22,9 +22,11 @@ button {
   transition: all 0.2s ease;
 }
 
+/*
 header img {
   filter: drop-shadow(0 0 5px rgba(250, 204, 21, 0.3));
 }
+*/
 
 footer {
   letter-spacing: 0.5px;
