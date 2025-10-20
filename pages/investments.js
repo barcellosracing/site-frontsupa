@@ -3,18 +3,6 @@ import { supabase } from '../lib/supabase'
 import { isAdmin } from '../lib/admin'
 import { FiPlus, FiX, FiTrash2 } from 'react-icons/fi'
 
-function monthOptions() {
-  const res = []
-  const now = new Date()
-  for (let y = now.getFullYear(); y >= now.getFullYear() - 3; y--) {
-    for (let m = 1; m <= 12; m++) {
-      const mm = m.toString().padStart(2, '0')
-      res.push({ key: `${y}-${mm}`, label: `${mm}/${y}` })
-    }
-  }
-  return res
-}
-
 export default function Investments() {
   const [items, setItems] = useState([])
   const [title, setTitle] = useState('')
@@ -22,6 +10,7 @@ export default function Investments() {
   const [category, setCategory] = useState('')
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
   const [showForm, setShowForm] = useState(false)
+  const [monthsList, setMonthsList] = useState([new Date().toISOString().slice(0, 7)])
 
   useEffect(() => {
     fetchData()
@@ -39,10 +28,7 @@ export default function Investments() {
 
   async function add(e) {
     e.preventDefault()
-    if (!isAdmin()) {
-      alert('Apenas administradores podem adicionar.')
-      return
-    }
+    if (!isAdmin()) return
 
     const created_at = new Date().toISOString()
     await supabase
@@ -56,44 +42,49 @@ export default function Investments() {
   }
 
   async function remove(id) {
-    if (!isAdmin()) {
-      alert('Apenas administradores podem excluir.')
-      return
-    }
+    if (!isAdmin()) return
     if (!confirm('Excluir despesa?')) return
     await supabase.from('investments').delete().eq('id', id)
     fetchData()
   }
 
-  const months = monthOptions()
+  // Atualiza lista de meses: se passar o tempo, adiciona novos meses
+  useEffect(() => {
+    const today = new Date()
+    setMonthsList(prev => {
+      const key = today.toISOString().slice(0, 7)
+      if (!prev.includes(key)) return [...prev, key]
+      return prev
+    })
+  }, [])
 
   return (
     <div className="relative">
+      {/* Cabeçalho com botão + */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold">Investimentos / Despesas</h2>
+        {isAdmin() && (
+          <button
+            onClick={() => setShowForm(f => !f)}
+            className="text-yellow-500 hover:text-yellow-400 transition p-2 rounded"
+            title={showForm ? 'Fechar formulário' : 'Adicionar investimento'}
+          >
+            <FiPlus size={24} />
+          </button>
+        )}
       </div>
-
-      {/* Botão flutuante de adicionar */}
-      {isAdmin() && (
-        <button
-          onClick={() => setShowForm(f => !f)}
-          className="fixed bottom-6 right-6 bg-blue-600 text-white rounded-full p-3 shadow-lg hover:bg-blue-700 transition-all"
-        >
-          {showForm ? <FiX size={22} /> : <FiPlus size={22} />}
-        </button>
-      )}
 
       {/* Filtro de mês */}
       <div className="mb-4 flex items-center gap-2">
-        <label className="text-sm text-gray-600">Filtrar mês:</label>
+        <label className="text-sm text-gray-200 font-medium">Filtrar mês:</label>
         <select
           value={month}
           onChange={e => setMonth(e.target.value)}
-          className="p-2 border rounded"
+          className="p-2 border rounded bg-gray-950 text-white"
         >
-          {months.map(m => (
-            <option key={m.key} value={m.key}>
-              {m.label}
+          {monthsList.map(m => (
+            <option key={m} value={m}>
+              {new Date(m + '-01').toLocaleString('default', { month: 'short', year: 'numeric' })}
             </option>
           ))}
         </select>
@@ -103,7 +94,7 @@ export default function Investments() {
       {showForm && isAdmin() && (
         <form
           onSubmit={add}
-          className="mb-6 card p-4 border border-gray-200 rounded-xl shadow-md animate-fade-in"
+          className="mb-6 card p-4 border border-gray-200 rounded-xl shadow-md"
         >
           <h3 className="text-lg font-semibold mb-3">Adicionar Investimento</h3>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -134,7 +125,7 @@ export default function Investments() {
         </form>
       )}
 
-      {/* Lista */}
+      {/* Lista de investimentos */}
       <div className="grid gap-3">
         {items.length === 0 ? (
           <div className="text-gray-500 text-sm text-center py-4">Nenhum item encontrado.</div>
@@ -146,7 +137,7 @@ export default function Investments() {
             >
               <div>
                 <div className="font-medium text-lg">{i.title}</div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-400">
                   R$ {i.amount} • {i.category || 'Sem categoria'}
                 </div>
                 <div className="text-xs text-gray-500">
@@ -157,6 +148,7 @@ export default function Investments() {
                 <button
                   onClick={() => remove(i.id)}
                   className="text-red-500 hover:text-red-700 transition"
+                  title="Excluir"
                 >
                   <FiTrash2 size={18} />
                 </button>
