@@ -62,15 +62,19 @@ export default function Layout({ children }) {
             </svg>
           </button>
 
-          {/* Logo centralizada */}
+          {/* Logo centralizada como botão para a página inicial */}
           <div className="absolute left-1/2 transform -translate-x-1/2">
-            <Image
-              src="/logo-barcellos.png"
-              alt="Barcellos Motos"
-              width={180}
-              height={50}
-              className="object-contain"
-            />
+            <Link href="/">
+              <a className="flex items-center">
+                <Image
+                  src="/logo-barcellos.png"
+                  alt="Barcellos Motos"
+                  width={180}
+                  height={50}
+                  className="object-contain border-0 logo cursor-pointer"
+                />
+              </a>
+            </Link>
           </div>
 
           {/* Espaço à direita para manter o botão centralizado */}
