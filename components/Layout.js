@@ -1,85 +1,122 @@
-import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 
-export default function Layout({children}){
-  const [theme,setTheme]=useState('dark')
-  const [menuOpen,setMenuOpen]=useState(false)
+export default function Layout({ children }) {
+  const [theme, setTheme] = useState("dark");
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  useEffect(()=>{
-    if (typeof window !== 'undefined'){
-      const t = localStorage.getItem('theme') || 'dark'
-      setTheme(t)
-      document.documentElement.setAttribute('data-theme', t==='dark' ? 'dark' : 'light')
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const t = localStorage.getItem("theme") || "dark";
+      setTheme(t);
+      document.documentElement.setAttribute(
+        "data-theme",
+        t === "dark" ? "dark" : "light"
+      );
     }
-  },[])
+  }, []);
 
-  function toggleTheme(){
-    const nt = theme==='dark' ? 'light' : 'dark'
-    setTheme(nt)
-    if (typeof window !== 'undefined') localStorage.setItem('theme', nt)
-    document.documentElement.setAttribute('data-theme', nt==='dark' ? 'dark' : 'light')
+  function toggleTheme() {
+    const nt = theme === "dark" ? "light" : "dark";
+    setTheme(nt);
+    if (typeof window !== "undefined") localStorage.setItem("theme", nt);
+    document.documentElement.setAttribute(
+      "data-theme",
+      nt === "dark" ? "dark" : "light"
+    );
   }
 
-  function openMenu(){ setMenuOpen(true) }
-  function closeMenu(){ setMenuOpen(false) }
-  function navAndClose(){ if(menuOpen) setMenuOpen(false) }
+  function openMenu() {
+    setMenuOpen(true);
+  }
+  function closeMenu() {
+    setMenuOpen(false);
+  }
+  function navAndClose() {
+    if (menuOpen) setMenuOpen(false);
+  }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="header">
-        <div className="container flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <div className="logo-circle mobile-trigger" style={{cursor:'pointer'}} onClick={openMenu}>BR</div>
-              <div className="brand-name">Barcellos Racing</div>
-            </div>
-          </div>
+    <div className="min-h-screen flex flex-col bg-gray-950 text-white">
+      {/* HEADER */}
+      <header className="bg-gray-900 border-b border-yellow-600 shadow-lg">
+        <div className="flex items-center justify-between px-4 py-3 max-w-7xl mx-auto">
+          {/* Botão Hamburguer */}
+          <button
+            onClick={openMenu}
+            className="p-2 rounded-md hover:bg-gray-800 transition"
+          >
+            <svg
+              className="w-7 h-7 text-yellow-500"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+          </button>
 
-          <nav className="mobile-hide flex items-center gap-3">
-            <Link href="/"><a className="tab-btn">Dashboard</a></Link>
-            <Link href="/clients"><a className="tab-btn">Clientes</a></Link>
-            <Link href="/products"><a className="tab-btn">Produtos</a></Link>
-            <Link href="/services"><a className="tab-btn">Serviços</a></Link>
-            <Link href="/orcamentos"><a className="tab-btn">Orçamentos</a></Link>
-            <Link href="/relatorios"><a className="tab-btn">Relatórios</a></Link>
-            <Link href="/investments"><a className="tab-btn">Investimentos / Despesas</a></Link>
-            <button className="header-btn" onClick={toggleTheme}>Tema escuro</button>
-            <Link href="/login"><a className="header-btn">Entrar</a></Link>
-          </nav>
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <Image
+              src="/logo-barcellos.png"
+              alt="Barcellos Motos"
+              width={160}
+              height={50}
+              className="object-contain"
+            />
+          </div>
         </div>
       </header>
 
-      {menuOpen && <div className="overlay show" onClick={closeMenu}></div>}
-      <div className={"drawer " + (menuOpen ? "open" : "")}>
-        <div className="flex items-center justify-between mb-4">
-          <div style={{display:'flex',alignItems:'center',gap:12}}>
-            <div className="logo-circle">BR</div>
-            <div>
-              <div className="font-bold">Barcellos Racing</div>
-              <div className="small-muted">Gestão • Oficina</div>
-            </div>
+      {/* MENU LATERAL */}
+      {menuOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-40 flex">
+          <div className="bg-gray-900 w-64 p-4 flex flex-col space-y-4">
+            <button
+              onClick={closeMenu}
+              className="text-right text-gray-400 hover:text-yellow-500"
+            >
+              ✕
+            </button>
+            <nav className="flex flex-col space-y-3">
+              <Link href="/" onClick={navAndClose} className="hover:text-yellow-500">
+                Início
+              </Link>
+              <Link href="/clients" onClick={navAndClose} className="hover:text-yellow-500">
+                Clientes
+              </Link>
+              <Link href="/services" onClick={navAndClose} className="hover:text-yellow-500">
+                Serviços
+              </Link>
+              <Link href="/products" onClick={navAndClose} className="hover:text-yellow-500">
+                Produtos
+              </Link>
+              <Link href="/orcamentos" onClick={navAndClose} className="hover:text-yellow-500">
+                Orçamentos
+              </Link>
+              <Link href="/relatorios" onClick={navAndClose} className="hover:text-yellow-500">
+                Relatórios
+              </Link>
+            </nav>
           </div>
-          <button onClick={closeMenu} className="p-2">Fechar</button>
+          <div className="flex-1" onClick={closeMenu}></div>
         </div>
+      )}
 
-        <nav className="flex flex-col gap-2">
-          <Link href="/"><a className="menu-item" onClick={navAndClose}>Dashboard</a></Link>
-          <Link href="/clients"><a className="menu-item" onClick={navAndClose}>Clientes</a></Link>
-          <Link href="/products"><a className="menu-item" onClick={navAndClose}>Produtos</a></Link>
-          <Link href="/services"><a className="menu-item" onClick={navAndClose}>Serviços</a></Link>
-          <Link href="/orcamentos"><a className="menu-item" onClick={navAndClose}>Orçamentos</a></Link>
-          <Link href="/relatorios"><a className="menu-item" onClick={navAndClose}>Relatórios</a></Link>
-          <Link href="/investments"><a className="menu-item" onClick={navAndClose}>Investimentos / Despesas</a></Link>
-          <div style={{marginTop:12, display:'flex', gap:8}}>
-            <button className="header-btn" onClick={()=>{ toggleTheme(); closeMenu(); }}>Tema escuro</button>
-            <Link href="/login"><a className="header-btn" onClick={navAndClose}>Entrar</a></Link>
-          </div>
-        </nav>
-      </div>
+      {/* CONTEÚDO PRINCIPAL */}
+      <main className="flex-1 p-6 max-w-7xl mx-auto">{children}</main>
 
-      <main className="container p-4 flex-1">{children}</main>
-
-      <footer className="text-center p-4 text-sm small-muted">© {new Date().getFullYear()} Barcellos Racing — Visual industrial • Feito para celular</footer>
+      {/* RODAPÉ */}
+      <footer className="bg-gray-900 border-t border-yellow-600 text-center text-gray-400 py-3 text-sm">
+        © {new Date().getFullYear()} Barcellos Motos — Todos os direitos reservados
+      </footer>
     </div>
-  )
+  );
 }
