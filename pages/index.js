@@ -37,7 +37,7 @@ export default function Dashboard() {
       {loading ? (
         <div className="text-center text-gray-400">Carregando...</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-6">
           {/* Card Clientes */}
           <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
             <div className="text-sm text-yellow-500 mb-2">Clientes</div>
