@@ -33,28 +33,33 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-4">
-      <h2 className="text-2xl font-semibold mb-4">Painel de Controle</h2>
-
+    <div className="p-6 max-w-7xl mx-auto">
       {loading ? (
-        <div>Carregando...</div>
+        <div className="text-center text-gray-400">Carregando...</div>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="card p-4 text-center shadow-md">
-            <div className="text-sm text-gray-500">Clientes</div>
-            <div className="text-2xl font-bold">{clientes.length}</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Card Clientes */}
+          <div className="bg-gray-900 rounded-2xl shadow-xl p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
+            <div className="text-sm text-gray-400 mb-2">Clientes</div>
+            <div className="text-3xl font-bold text-yellow-500">{clientes.length}</div>
           </div>
-          <div className="card p-4 text-center shadow-md">
-            <div className="text-sm text-gray-500">Produtos</div>
-            <div className="text-2xl font-bold">{produtos.length}</div>
+
+          {/* Card Produtos */}
+          <div className="bg-gray-900 rounded-2xl shadow-xl p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
+            <div className="text-sm text-gray-400 mb-2">Produtos</div>
+            <div className="text-3xl font-bold text-yellow-500">{produtos.length}</div>
           </div>
-          <div className="card p-4 text-center shadow-md">
-            <div className="text-sm text-gray-500">Serviços</div>
-            <div className="text-2xl font-bold">{servicos.length}</div>
+
+          {/* Card Serviços */}
+          <div className="bg-gray-900 rounded-2xl shadow-xl p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
+            <div className="text-sm text-gray-400 mb-2">Serviços</div>
+            <div className="text-3xl font-bold text-yellow-500">{servicos.length}</div>
           </div>
-          <div className="card p-4 text-center shadow-md">
-            <div className="text-sm text-gray-500">Orçamentos</div>
-            <div className="text-2xl font-bold">{orcamentos.length}</div>
+
+          {/* Card Orçamentos */}
+          <div className="bg-gray-900 rounded-2xl shadow-xl p-6 text-center transition transform hover:scale-105 hover:shadow-gold">
+            <div className="text-sm text-gray-400 mb-2">Orçamentos</div>
+            <div className="text-3xl font-bold text-yellow-500">{orcamentos.length}</div>
           </div>
         </div>
       )}
