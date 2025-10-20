@@ -80,7 +80,7 @@ export default function Investments() {
       {showForm && isAdmin() && (
         <form
           onSubmit={add}
-          className="mb-6 card p-4 border border-gray-200 rounded-xl shadow-md"
+          className="mb-6 card p-4 border border-gray-700 rounded-xl shadow-md bg-gray-950"
         >
           <h3 className="text-lg font-semibold mb-3">Adicionar Investimento</h3>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -126,7 +126,10 @@ export default function Investments() {
       {/* Lista de investimentos */}
       <div className="grid gap-3">
         {items.map(i => (
-          <div key={i.id} className="card flex justify-between items-center">
+          <div
+            key={i.id}
+            className="card flex justify-between items-center p-3 border border-gray-700 rounded-xl shadow-sm bg-gray-950"
+          >
             <div>
               <div className="font-medium">{i.title}</div>
               <div className="text-sm small-muted">R$ {i.amount} • {i.category}</div>
