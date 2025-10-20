@@ -37,6 +37,17 @@ export default function Layout({ children }) {
     if (menuOpen) setMenuOpen(false);
   }
 
+  const menuItems = [
+    { name: "Início", href: "/" },
+    { name: "Clientes", href: "/clients" },
+    { name: "Serviços", href: "/services" },
+    { name: "Produtos", href: "/products" },
+    { name: "Orçamentos", href: "/orcamentos" },
+    { name: "Relatórios", href: "/relatorios" },
+    { name: "Investimentos", href: "/investments" },
+    { name: "Login", href: "/login" },
+  ];
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-950 text-white">
       {/* HEADER */}
@@ -85,41 +96,24 @@ export default function Layout({ children }) {
       {/* MENU LATERAL */}
       {menuOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-40 flex">
-          <div className="bg-gray-900 w-64 p-6 flex flex-col justify-start space-y-5 shadow-xl rounded-r-xl">
+          <div className="bg-gray-900 w-64 p-6 flex flex-col space-y-5 shadow-xl rounded-r-xl">
             {/* Botão fechar */}
             <button
               onClick={closeMenu}
-              className="self-end text-gray-400 hover:text-yellow-500 text-2xl font-bold"
+              className="self-end text-gray-400 hover:text-yellow-500 text-2xl font-bold transition"
             >
               ✕
             </button>
 
             {/* Links do menu */}
-            <nav className="flex flex-col space-y-4 mt-2">
-              <Link href="/" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
-                Início
-              </Link>
-              <Link href="/clients" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
-                Clientes
-              </Link>
-              <Link href="/services" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
-                Serviços
-              </Link>
-              <Link href="/products" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
-                Produtos
-              </Link>
-              <Link href="/orcamentos" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
-                Orçamentos
-              </Link>
-              <Link href="/relatorios" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
-                Relatórios
-              </Link>
-              <Link href="/investments" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
-                Investimentos
-              </Link>
-              <Link href="/login" onClick={navAndClose} className="text-white hover:text-yellow-500 transition">
-                Login
-              </Link>
+            <nav className="flex flex-col space-y-3 mt-2">
+              {menuItems.map((item) => (
+                <Link key={item.href} href={item.href} onClick={navAndClose}>
+                  <a className="block text-white px-4 py-2 border border-gray-700 rounded-lg hover:bg-yellow-500 hover:text-black transition font-medium">
+                    {item.name}
+                  </a>
+                </Link>
+              ))}
             </nav>
           </div>
           <div className="flex-1" onClick={closeMenu}></div>
