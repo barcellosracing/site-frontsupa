@@ -156,30 +156,31 @@ export default function Orcamentos() {
 
   return (
     <div className="relative">
+      {/* Cabeçalho */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold">Orçamentos</h2>
+        {isAdmin() && (
+          <button
+            onClick={() => setMostrarForm(s => !s)}
+            className="p-2 text-yellow-400 hover:text-yellow-500 transition"
+          >
+            {mostrarForm ? <FiX size={24} /> : <FiPlus size={24} />}
+          </button>
+        )}
       </div>
 
-      {isAdmin() && (
-        <button
-          onClick={() => setMostrarForm(s => !s)}
-          className="fixed bottom-6 right-6 bg-blue-600 text-white rounded-full p-3 shadow-lg hover:bg-blue-700 transition-all"
-        >
-          {mostrarForm ? <FiX size={22} /> : <FiPlus size={22} />}
-        </button>
-      )}
-
+      {/* Formulário */}
       {mostrarForm && (
         <form
           onSubmit={salvarOrcamento}
-          className="mb-6 card p-4 border border-gray-200 rounded-xl shadow-md animate-fade-in"
+          className="mb-6 border border-gray-700 rounded-xl shadow-md bg-gray-950 p-4"
         >
           <h3 className="text-lg font-semibold mb-3">Novo Orçamento</h3>
           <div className="grid gap-3">
             <div>
-              <label className="block text-sm mb-1">Cliente</label>
+              <label className="block text-sm mb-1 text-gray-300">Cliente</label>
               <select
-                className="w-full p-2 border rounded"
+                className="w-full p-2 border border-gray-600 rounded bg-gray-800 text-white"
                 value={clienteId}
                 onChange={e => setClienteId(e.target.value)}
               >
@@ -193,18 +194,22 @@ export default function Orcamentos() {
             </div>
 
             <div>
-              <label className="block text-sm mb-1">Adicionar item</label>
+              <label className="block text-sm mb-1 text-gray-300">Adicionar item</label>
               <div className="flex gap-2 mb-2">
                 <button
                   type="button"
-                  className={`tab-btn ${tipoAtual === 'produto' ? 'bg-blue-100' : ''}`}
+                  className={`px-3 py-1 rounded border border-gray-600 ${
+                    tipoAtual === 'produto' ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'
+                  }`}
                   onClick={() => setTipoAtual('produto')}
                 >
                   Produto
                 </button>
                 <button
                   type="button"
-                  className={`tab-btn ${tipoAtual === 'serviço' ? 'bg-blue-100' : ''}`}
+                  className={`px-3 py-1 rounded border border-gray-600 ${
+                    tipoAtual === 'serviço' ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'
+                  }`}
                   onClick={() => setTipoAtual('serviço')}
                 >
                   Serviço
@@ -213,7 +218,7 @@ export default function Orcamentos() {
 
               <div className="flex gap-2">
                 <select
-                  className="flex-1 p-2 border rounded"
+                  className="flex-1 p-2 border border-gray-600 rounded bg-gray-800 text-white"
                   value={itemSelecionado}
                   onChange={e => setItemSelecionado(e.target.value)}
                 >
@@ -228,14 +233,14 @@ export default function Orcamentos() {
                 <input
                   type="number"
                   min="1"
-                  className="w-24 p-2 border rounded"
+                  className="w-24 p-2 border border-gray-600 rounded bg-gray-800 text-white"
                   value={quantidade}
                   onChange={e => setQuantidade(e.target.value)}
                 />
 
                 <button
                   type="button"
-                  className="tab-btn"
+                  className="px-4 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition"
                   onClick={adicionarItemAtual}
                 >
                   Adicionar
@@ -243,27 +248,28 @@ export default function Orcamentos() {
               </div>
             </div>
 
+            {/* Lista de Itens */}
             {itens.length > 0 && (
               <div className="mt-2">
-                <div className="text-sm font-medium mb-1">Itens adicionados</div>
+                <div className="text-sm font-medium mb-1 text-gray-300">Itens adicionados</div>
                 <div className="grid gap-2">
                   {itens.map((it, idx) => (
                     <div
                       key={idx}
-                      className="flex justify-between items-center p-2 bg-gray-50 rounded border"
+                      className="flex justify-between items-center p-2 bg-gray-900 border border-gray-700 rounded"
                     >
                       <div>
-                        <div className="font-medium">
+                        <div className="font-medium text-white">
                           {it.nome}{' '}
-                          <span className="text-gray-500 text-sm">({it.tipo})</span>
+                          <span className="text-gray-400 text-sm">({it.tipo})</span>
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-400">
                           Qtd: {it.qtd} • R$ {it.valor}
                         </div>
                       </div>
                       <button
                         type="button"
-                        className="text-red-500 hover:text-red-700"
+                        className="text-red-500 hover:text-red-600"
                         onClick={() => removerItem(idx)}
                       >
                         <FiTrash2 size={16} />
@@ -271,14 +277,14 @@ export default function Orcamentos() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 text-right text-sm text-gray-600">
+                <div className="mt-3 text-right text-sm text-gray-400">
                   Total parcial: R$ {itens.reduce((s, it) => s + it.valor * it.qtd, 0).toFixed(2)}
                 </div>
               </div>
             )}
 
             <div className="mt-3 flex justify-end">
-              <button className="tab-btn" type="submit">
+              <button className="px-4 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition" type="submit">
                 Salvar Orçamento
               </button>
             </div>
@@ -286,11 +292,12 @@ export default function Orcamentos() {
         </form>
       )}
 
+      {/* Filtros */}
       <div className="mb-4 flex flex-wrap gap-2 items-center">
         <select
           value={clienteId}
           onChange={e => setClienteId(e.target.value)}
-          className="p-2 border rounded"
+          className="p-2 border border-gray-600 rounded bg-gray-800 text-white"
         >
           <option value="">Todos os clientes</option>
           {clientes.map(c => (
@@ -300,7 +307,7 @@ export default function Orcamentos() {
           ))}
         </select>
 
-        <select value={mes} onChange={e => setMes(e.target.value)} className="p-2 border rounded">
+        <select value={mes} onChange={e => setMes(e.target.value)} className="p-2 border border-gray-600 rounded bg-gray-800 text-white">
           {meses.map(m => (
             <option key={m.key} value={m.key}>
               {m.label}
@@ -309,25 +316,39 @@ export default function Orcamentos() {
         </select>
       </div>
 
+      {/* Lista de Orçamentos */}
       <div className="grid gap-3">
         {filtrados.map(o => (
-          <div key={o.id} className="card border rounded-xl shadow-sm p-4 hover:shadow-md transition">
+          <div key={o.id} className="p-4 border border-gray-700 rounded-xl shadow-sm bg-gray-950 hover:shadow-md transition">
             <div className="flex justify-between items-center">
               <div>
-                <div className="font-medium text-lg">Orçamento #{o.id}</div>
-                <div className="text-sm text-gray-600">Total: R$ {o.total}</div>
+                <div className="font-medium text-lg text-white">Orçamento #{o.id}</div>
+                <div className="text-sm text-gray-400">Total: R$ {o.total}</div>
                 <div className="text-xs text-gray-500">
                   {o.created_at ? new Date(o.created_at).toLocaleString() : ''}
                 </div>
               </div>
-              {isAdmin() && (
-                <button
-                  className={`tab-btn ${o.status === 'fechado' ? 'bg-green-600' : 'bg-yellow-500'}`}
-                  onClick={() => alternarStatus(o)}
+
+              <div className="flex items-center gap-2">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    o.status === 'fechado'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-yellow-500 text-black'
+                  }`}
                 >
-                  {o.status === 'fechado' ? 'Reabrir' : 'Fechar'}
-                </button>
-              )}
+                  {o.status.toUpperCase()}
+                </span>
+
+                {isAdmin() && (
+                  <button
+                    className="text-sm px-3 py-1 border border-gray-600 rounded hover:bg-gray-800 transition text-gray-300"
+                    onClick={() => alternarStatus(o)}
+                  >
+                    {o.status === 'fechado' ? 'Reabrir' : 'Fechar'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ))}
