@@ -3,20 +3,6 @@ import { supabase } from '../lib/supabase'
 import { isAdmin } from '../lib/admin'
 import { FiPlus, FiX, FiTrash2 } from 'react-icons/fi'
 
-// Gera lista de últimos 12 meses
-function ultimos12Meses() {
-  const res = []
-  const agora = new Date()
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1)
-    res.push({
-      key: d.toISOString().slice(0, 7),
-      label: d.toLocaleString('default', { month: 'short', year: 'numeric' })
-    })
-  }
-  return res
-}
-
 export default function Orcamentos() {
   const [orcamentos, setOrcamentos] = useState([])
   const [clientes, setClientes] = useState([])
@@ -29,6 +15,7 @@ export default function Orcamentos() {
   const [itemSelecionado, setItemSelecionado] = useState('')
   const [quantidade, setQuantidade] = useState(1)
   const [mes, setMes] = useState(new Date().toISOString().slice(0, 7))
+  const [mesesDisponiveis, setMesesDisponiveis] = useState([new Date().toISOString().slice(0, 7)])
   const [mostrarForm, setMostrarForm] = useState(false)
 
   useEffect(() => {
@@ -46,6 +33,16 @@ export default function Orcamentos() {
     setClientes(cli || [])
     setProdutos(prod || [])
     setServicos(serv || [])
+
+    // Atualiza meses dinamicamente conforme há novos orçamentos
+    const mesesSet = new Set(
+      (orc || []).map(o => (o.created_at ? o.created_at.slice(0, 7) : ''))
+    )
+    const listaMeses = Array.from(mesesSet).sort().reverse()
+    if (listaMeses.length === 0) {
+      listaMeses.push(new Date().toISOString().slice(0, 7))
+    }
+    setMesesDisponiveis(listaMeses)
   }
 
   function adicionarItemAtual() {
@@ -152,13 +149,16 @@ export default function Orcamentos() {
     return clienteOk && mesOk
   })
 
-  const meses = ultimos12Meses()
+  function nomeCliente(id) {
+    const cli = clientes.find(c => c.id === id)
+    return cli ? cli.nome : '(Cliente removido)'
+  }
 
   return (
-    <div className="relative">
+    <div className="relative max-w-full overflow-hidden">
       {/* Cabeçalho */}
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold">Orçamentos</h2>
+        <h2 className="text-2xl font-semibold text-white">Orçamentos</h2>
         {isAdmin() && (
           <button
             onClick={() => setMostrarForm(s => !s)}
@@ -169,13 +169,13 @@ export default function Orcamentos() {
         )}
       </div>
 
-      {/* Formulário */}
+      {/* Formulário responsivo */}
       {mostrarForm && (
         <form
           onSubmit={salvarOrcamento}
-          className="mb-6 border border-gray-700 rounded-xl shadow-md bg-gray-950 p-4"
+          className="mb-6 border border-gray-700 rounded-xl shadow-md bg-gray-950 p-4 max-w-full w-full sm:w-[95%] mx-auto"
         >
-          <h3 className="text-lg font-semibold mb-3">Novo Orçamento</h3>
+          <h3 className="text-lg font-semibold mb-3 text-white">Novo Orçamento</h3>
           <div className="grid gap-3">
             <div>
               <label className="block text-sm mb-1 text-gray-300">Cliente</label>
@@ -195,7 +195,7 @@ export default function Orcamentos() {
 
             <div>
               <label className="block text-sm mb-1 text-gray-300">Adicionar item</label>
-              <div className="flex gap-2 mb-2">
+              <div className="flex gap-2 flex-wrap">
                 <button
                   type="button"
                   className={`px-3 py-1 rounded border border-gray-600 ${
@@ -216,7 +216,7 @@ export default function Orcamentos() {
                 </button>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 mt-2">
                 <select
                   className="flex-1 p-2 border border-gray-600 rounded bg-gray-800 text-white"
                   value={itemSelecionado}
@@ -233,14 +233,14 @@ export default function Orcamentos() {
                 <input
                   type="number"
                   min="1"
-                  className="w-24 p-2 border border-gray-600 rounded bg-gray-800 text-white"
+                  className="w-full sm:w-24 p-2 border border-gray-600 rounded bg-gray-800 text-white"
                   value={quantidade}
                   onChange={e => setQuantidade(e.target.value)}
                 />
 
                 <button
                   type="button"
-                  className="px-4 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition"
+                  className="px-4 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition w-full sm:w-auto"
                   onClick={adicionarItemAtual}
                 >
                   Adicionar
@@ -248,7 +248,7 @@ export default function Orcamentos() {
               </div>
             </div>
 
-            {/* Lista de Itens */}
+            {/* Itens */}
             {itens.length > 0 && (
               <div className="mt-2">
                 <div className="text-sm font-medium mb-1 text-gray-300">Itens adicionados</div>
@@ -307,10 +307,14 @@ export default function Orcamentos() {
           ))}
         </select>
 
-        <select value={mes} onChange={e => setMes(e.target.value)} className="p-2 border border-gray-600 rounded bg-gray-800 text-white">
-          {meses.map(m => (
-            <option key={m.key} value={m.key}>
-              {m.label}
+        <select
+          value={mes}
+          onChange={e => setMes(e.target.value)}
+          className="p-2 border border-gray-600 rounded bg-gray-800 text-white"
+        >
+          {mesesDisponiveis.map(m => (
+            <option key={m} value={m}>
+              {new Date(m + '-01').toLocaleString('default', { month: 'short', year: 'numeric' })}
             </option>
           ))}
         </select>
@@ -322,7 +326,9 @@ export default function Orcamentos() {
           <div key={o.id} className="p-4 border border-gray-700 rounded-xl shadow-sm bg-gray-950 hover:shadow-md transition">
             <div className="flex justify-between items-center">
               <div>
-                <div className="font-medium text-lg text-white">Orçamento #{o.id}</div>
+                <div className="font-medium text-lg text-white">
+                  Orçamento {nomeCliente(o.cliente_id)}
+                </div>
                 <div className="text-sm text-gray-400">Total: R$ {o.total}</div>
                 <div className="text-xs text-gray-500">
                   {o.created_at ? new Date(o.created_at).toLocaleString() : ''}
