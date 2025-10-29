@@ -1,281 +1,248 @@
-'use client';
-import { useEffect, useState } from 'react';
+// /pages/estoque.jsx
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { PlusCircle, Trash2, Edit } from 'lucide-react';
+import { Plus, Trash2, Pencil } from 'lucide-react'
 
-export default function EstoquePage() {
-  const [produtos, setProdutos] = useState([]);
-  const [historico, setHistorico] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [form, setForm] = useState({
-    id: '',
+export default function Estoque() {
+  const [produtos, setProdutos] = useState([])
+  const [historico, setHistorico] = useState([])
+  const [showForm, setShowForm] = useState(false)
+  const [formData, setFormData] = useState({
     nome: '',
     descricao: '',
     preco_custo: '',
     quantidade: '',
-    margem_lucro: '',
-  });
-  const [modoEdicao, setModoEdicao] = useState(false);
+    produto_existente: ''
+  })
 
-  // Carrega dados do estoque e histórico
+  // 🔄 Carrega dados do Supabase
   useEffect(() => {
-    carregarDados();
-  }, []);
+    carregarProdutos()
+    carregarHistorico()
+  }, [])
 
-  async function carregarDados() {
-    setIsLoading(true);
-    const { data: produtosData } = await supabase
-      .from('estoque_produtos')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    const { data: historicoData } = await supabase
-      .from('estoque_historico')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    setProdutos(produtosData || []);
-    setHistorico(historicoData || []);
-    setIsLoading(false);
+  const carregarProdutos = async () => {
+    const { data, error } = await supabase.from('estoque_produtos').select('*').order('nome', { ascending: true })
+    if (!error) setProdutos(data || [])
   }
 
-  // Formatação numérica brasileira
-  function parseValor(valor) {
-    if (!valor) return 0;
-    return parseFloat(valor.replace(',', '.'));
+  const carregarHistorico = async () => {
+    const { data, error } = await supabase.from('estoque_historico').select('*').order('data_entrada', { ascending: false })
+    if (!error) setHistorico(data || [])
   }
 
-  function formatValor(valor) {
-    if (valor == null) return '';
-    return parseFloat(valor).toFixed(2).replace('.', ',');
-  }
+  // 🧾 Adicionar entrada
+  const adicionarEntrada = async (e) => {
+    e.preventDefault()
 
-  async function salvarProduto(e) {
-    e.preventDefault();
-    const preco_custo = parseValor(form.preco_custo);
-    const quantidade = parseInt(form.quantidade);
-    const margem = parseValor(form.margem_lucro);
+    const preco = parseFloat(formData.preco_custo.replace(',', '.'))
+    const qtd = parseInt(formData.quantidade)
 
-    if (!form.nome || !quantidade || isNaN(preco_custo)) {
-      alert('Preencha todos os campos obrigatórios!');
-      return;
-    }
+    let produtoId = formData.produto_existente
 
-    if (modoEdicao) {
+    if (produtoId) {
+      // Atualiza produto existente
+      const produtoExistente = produtos.find((p) => p.id === produtoId)
+      const novoTotal = produtoExistente.quantidade + qtd
+      const novoCustoMedio = ((produtoExistente.preco_custo * produtoExistente.quantidade) + (preco * qtd)) / novoTotal
+
       await supabase
         .from('estoque_produtos')
-        .update({
-          nome: form.nome,
-          descricao: form.descricao,
-          preco_custo_medio: preco_custo,
-          quantidade,
-          margem_lucro: margem,
-        })
-        .eq('id', form.id);
+        .update({ quantidade: novoTotal, preco_custo: novoCustoMedio })
+        .eq('id', produtoId)
     } else {
-      const produtoExistente = produtos.find(
-        (p) => p.nome.toLowerCase() === form.nome.toLowerCase()
-      );
-
-      if (produtoExistente) {
-        // Atualiza custo médio e quantidade
-        const novoTotal = produtoExistente.quantidade + quantidade;
-        const novoCustoMedio =
-          (produtoExistente.preco_custo_medio * produtoExistente.quantidade +
-            preco_custo * quantidade) /
-          novoTotal;
-
-        await supabase
-          .from('estoque_produtos')
-          .update({
-            preco_custo_medio: novoCustoMedio,
-            quantidade: novoTotal,
-          })
-          .eq('id', produtoExistente.id);
-
-        await supabase.from('estoque_historico').insert([
+      // Cria novo produto
+      const { data, error } = await supabase
+        .from('estoque_produtos')
+        .insert([
           {
-            produto_id: produtoExistente.id,
-            nome: form.nome,
-            descricao: form.descricao,
-            preco_custo,
-            quantidade,
-          },
-        ]);
-      } else {
-        const { data: novoProduto } = await supabase
-          .from('estoque_produtos')
-          .insert([
-            {
-              nome: form.nome,
-              descricao: form.descricao,
-              preco_custo_medio: preco_custo,
-              quantidade,
-              margem_lucro: margem,
-            },
-          ])
-          .select()
-          .single();
+            nome: formData.nome,
+            descricao: formData.descricao,
+            preco_custo: preco,
+            quantidade: qtd,
+            margem_lucro: 0
+          }
+        ])
+        .select()
 
-        await supabase.from('estoque_historico').insert([
-          {
-            produto_id: novoProduto.id,
-            nome: form.nome,
-            descricao: form.descricao,
-            preco_custo,
-            quantidade,
-          },
-        ]);
+      if (!error && data?.length) produtoId = data[0].id
+    }
+
+    // Adiciona histórico
+    await supabase.from('estoque_historico').insert([
+      {
+        produto_id: produtoId,
+        nome: formData.nome,
+        descricao: formData.descricao,
+        preco_custo: preco,
+        quantidade: qtd
       }
-    }
+    ])
 
-    setForm({
-      id: '',
-      nome: '',
-      descricao: '',
-      preco_custo: '',
-      quantidade: '',
-      margem_lucro: '',
-    });
-    setModoEdicao(false);
-    await carregarDados();
+    setFormData({ nome: '', descricao: '', preco_custo: '', quantidade: '', produto_existente: '' })
+    setShowForm(false)
+    carregarProdutos()
+    carregarHistorico()
   }
 
-  async function excluirProduto(id) {
-    if (confirm('Tem certeza que deseja excluir este produto?')) {
-      await supabase.from('estoque_produtos').delete().eq('id', id);
-      await carregarDados();
-    }
+  // ✏️ Editar histórico
+  const editarHistorico = async (id, campo, valor) => {
+    await supabase.from('estoque_historico').update({ [campo]: valor }).eq('id', id)
+    carregarHistorico()
   }
 
-  function editarProduto(produto) {
-    setModoEdicao(true);
-    setForm({
-      id: produto.id,
-      nome: produto.nome,
-      descricao: produto.descricao || '',
-      preco_custo: formatValor(produto.preco_custo_medio),
-      quantidade: produto.quantidade,
-      margem_lucro: formatValor(produto.margem_lucro),
-    });
+  // 🗑️ Excluir histórico
+  const excluirHistorico = async (id) => {
+    await supabase.from('estoque_historico').delete().eq('id', id)
+    carregarHistorico()
+  }
+
+  // 💰 Atualizar margem de lucro
+  const atualizarMargem = async (id, valor) => {
+    await supabase.from('estoque_produtos').update({ margem_lucro: parseFloat(valor) }).eq('id', id)
+    carregarProdutos()
   }
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">📦 Controle de Estoque</h1>
+      {/* Cabeçalho */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Estoque</h1>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition"
+        >
+          <Plus size={20} />
+        </button>
+      </div>
 
-      {/* Formulário */}
-      <form
-        onSubmit={salvarProduto}
-        className="bg-white shadow-md rounded-2xl p-4 mb-6 max-w-xl"
-      >
-        <h2 className="text-lg font-semibold mb-3">
-          {modoEdicao ? 'Editar Produto' : 'Adicionar Produto'}
-        </h2>
-
-        <div className="grid grid-cols-1 gap-3">
-          <input
-            className="border p-2 rounded"
-            placeholder="Nome do produto"
-            value={form.nome}
-            onChange={(e) => setForm({ ...form, nome: e.target.value })}
-          />
-          <textarea
-            className="border p-2 rounded"
-            placeholder="Descrição"
-            value={form.descricao}
-            onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-          />
-          <input
-            className="border p-2 rounded"
-            placeholder="Preço de custo (ex: 10,50)"
-            value={form.preco_custo}
-            onChange={(e) => setForm({ ...form, preco_custo: e.target.value })}
-          />
-          <input
-            type="number"
-            className="border p-2 rounded"
-            placeholder="Quantidade"
-            value={form.quantidade}
-            onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
-          />
-          <input
-            className="border p-2 rounded"
-            placeholder="Margem de lucro (%)"
-            value={form.margem_lucro}
-            onChange={(e) => setForm({ ...form, margem_lucro: e.target.value })}
-          />
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded p-2 flex items-center justify-center gap-2"
-          >
-            <PlusCircle size={18} />
-            {modoEdicao ? 'Salvar Alterações' : 'Adicionar ao Estoque'}
-          </button>
-        </div>
-      </form>
-
-      {/* Lista de produtos */}
-      <h2 className="text-xl font-semibold mb-2">Produtos no Estoque</h2>
-      {isLoading ? (
-        <p>Carregando...</p>
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2">
-          {produtos.map((p) => (
-            <div
-              key={p.id}
-              className="border rounded-2xl p-4 shadow-sm bg-white flex justify-between items-start"
+      {/* Formulário flutuante */}
+      {showForm && (
+        <div className="bg-white dark:bg-gray-800 shadow-lg rounded-2xl p-6 mb-8 border border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-200">Nova Entrada</h2>
+          <form onSubmit={adicionarEntrada} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <select
+              value={formData.produto_existente}
+              onChange={(e) => setFormData({ ...formData, produto_existente: e.target.value })}
+              className="p-2 border rounded-md bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
             >
-              <div>
-                <h3 className="font-bold">{p.nome}</h3>
-                <p className="text-sm text-gray-600">{p.descricao}</p>
-                <p>
-                  Custo médio: <b>R$ {formatValor(p.preco_custo_medio)}</b>
-                </p>
-                <p>
-                  Quantidade: <b>{p.quantidade}</b>
-                </p>
-                <p>
-                  Margem: <b>{p.margem_lucro}%</b>
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => editarProduto(p)}>
-                  <Edit size={20} className="text-blue-600" />
-                </button>
-                <button onClick={() => excluirProduto(p)}>
-                  <Trash2 size={20} className="text-red-600" />
-                </button>
-              </div>
-            </div>
-          ))}
+              <option value="">Novo produto</option>
+              {produtos.map((p) => (
+                <option key={p.id} value={p.id}>{p.nome}</option>
+              ))}
+            </select>
+
+            <input
+              type="text"
+              placeholder="Nome"
+              value={formData.nome}
+              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+              className="p-2 border rounded-md bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+              required={!formData.produto_existente}
+            />
+
+            <input
+              type="text"
+              placeholder="Descrição"
+              value={formData.descricao}
+              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+              className="p-2 border rounded-md bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+            />
+
+            <input
+              type="text"
+              placeholder="Preço de custo (ex: 10,50)"
+              value={formData.preco_custo}
+              onChange={(e) => setFormData({ ...formData, preco_custo: e.target.value })}
+              className="p-2 border rounded-md bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+              required
+            />
+
+            <input
+              type="number"
+              placeholder="Quantidade"
+              value={formData.quantidade}
+              onChange={(e) => setFormData({ ...formData, quantidade: e.target.value })}
+              className="p-2 border rounded-md bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+              required
+            />
+
+            <button type="submit" className="bg-green-600 hover:bg-green-700 text-white py-2 rounded-md mt-2 transition">
+              Adicionar
+            </button>
+          </form>
         </div>
       )}
 
-      {/* Histórico */}
-      <h2 className="text-xl font-semibold mt-8 mb-2">
-        Histórico de Entradas
-      </h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white rounded-2xl shadow-md">
+      {/* Tabela de produtos */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6 mb-10 border border-gray-200 dark:border-gray-700">
+        <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-200">Produtos no Estoque</h2>
+        <table className="w-full text-left text-gray-700 dark:text-gray-200">
           <thead>
-            <tr className="bg-gray-100 text-left">
-              <th className="p-2">Nome</th>
-              <th className="p-2">Descrição</th>
-              <th className="p-2">Preço de custo</th>
-              <th className="p-2">Quantidade</th>
-              <th className="p-2">Data</th>
+            <tr className="border-b border-gray-300 dark:border-gray-700">
+              <th className="py-2">Nome</th>
+              <th>Descrição</th>
+              <th>Preço Custo Médio</th>
+              <th>Quantidade</th>
+              <th>Margem Lucro (%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {produtos.map((p) => (
+              <tr key={p.id} className="border-b border-gray-100 dark:border-gray-700">
+                <td className="py-2">{p.nome}</td>
+                <td>{p.descricao}</td>
+                <td>R$ {p.preco_custo.toFixed(2).replace('.', ',')}</td>
+                <td>{p.quantidade}</td>
+                <td>
+                  <input
+                    type="number"
+                    value={p.margem_lucro || ''}
+                    onChange={(e) => atualizarMargem(p.id, e.target.value)}
+                    className="w-20 p-1 border rounded-md bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Histórico */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6 border border-gray-200 dark:border-gray-700">
+        <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-200">Histórico de Entradas</h2>
+        <table className="w-full text-left text-gray-700 dark:text-gray-200">
+          <thead>
+            <tr className="border-b border-gray-300 dark:border-gray-700">
+              <th className="py-2">Nome</th>
+              <th>Descrição</th>
+              <th>Preço Custo</th>
+              <th>Quantidade</th>
+              <th>Data</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             {historico.map((h) => (
-              <tr key={h.id} className="border-t">
-                <td className="p-2">{h.nome}</td>
-                <td className="p-2">{h.descricao}</td>
-                <td className="p-2">R$ {formatValor(h.preco_custo)}</td>
-                <td className="p-2">{h.quantidade}</td>
-                <td className="p-2">
-                  {new Date(h.created_at).toLocaleString('pt-BR')}
+              <tr key={h.id} className="border-b border-gray-100 dark:border-gray-700">
+                <td>{h.nome}</td>
+                <td>{h.descricao}</td>
+                <td>R$ {h.preco_custo.toFixed(2).replace('.', ',')}</td>
+                <td>{h.quantidade}</td>
+                <td>{new Date(h.data_entrada).toLocaleDateString('pt-BR')}</td>
+                <td className="flex gap-2">
+                  <button
+                    onClick={() => editarHistorico(h.id, 'descricao', prompt('Nova descrição:', h.descricao))}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <Pencil size={18} />
+                  </button>
+                  <button
+                    onClick={() => excluirHistorico(h.id)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </td>
               </tr>
             ))}
@@ -283,5 +250,5 @@ export default function EstoquePage() {
         </table>
       </div>
     </div>
-  );
+  )
 }
