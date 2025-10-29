@@ -52,18 +52,16 @@ create table if not exists investments (
   created_at timestamp with time zone default now()
 );
 
--- Tabela principal de produtos no estoque
 create table if not exists estoque_produtos (
   id uuid primary key default uuid_generate_v4(),
   nome text not null,
   descricao text,
-  preco_custo_medio numeric not null default 0,
+  preco_custo numeric not null,
   quantidade int not null default 0,
-  margem_lucro numeric not null default 0, -- porcentagem (ex: 20 = 20%)
+  margem_lucro numeric default 0,
   created_at timestamp with time zone default now()
 );
 
--- Histórico de entradas de produtos no estoque
 create table if not exists estoque_historico (
   id uuid primary key default uuid_generate_v4(),
   produto_id uuid references estoque_produtos(id) on delete cascade,
@@ -71,5 +69,6 @@ create table if not exists estoque_historico (
   descricao text,
   preco_custo numeric not null,
   quantidade int not null,
-  created_at timestamp with time zone default now()
+  data_entrada timestamp with time zone default now()
 );
+
