@@ -15,75 +15,115 @@ export default function Estoque() {
     produto_existente: ''
   })
 
+  // 🔹 Carregar dados ao abrir a página
   useEffect(() => {
     carregarProdutos()
     carregarHistorico()
   }, [])
 
+  // 🔹 Buscar produtos
   const carregarProdutos = async () => {
-    const { data } = await supabase.from('estoque_produtos').select('*').order('nome', { ascending: true })
+    const { data, error } = await supabase
+      .from('estoque_produtos')
+      .select('*')
+      .order('nome', { ascending: true })
+
+    if (error) console.error('Erro ao buscar produtos:', error)
     setProdutos(data || [])
   }
 
+  // 🔹 Buscar histórico
   const carregarHistorico = async () => {
-    const { data } = await supabase.from('estoque_historico').select('*').order('data_entrada', { ascending: false })
+    const { data, error } = await supabase
+      .from('estoque_historico')
+      .select('*')
+      .order('data_entrada', { ascending: false })
+
+    if (error) console.error('Erro ao buscar histórico:', error)
     setHistorico(data || [])
   }
 
+  // 🔹 Adicionar nova entrada
   const adicionarEntrada = async (e) => {
     e.preventDefault()
-    const preco = parseFloat(formData.preco_custo.replace(',', '.'))
-    const qtd = parseInt(formData.quantidade)
+
+    const preco = parseFloat(formData.preco_custo.replace(',', '.')) || 0
+    const qtd = parseInt(formData.quantidade) || 0
     let produtoId = formData.produto_existente
 
-    if (produtoId) {
-      const produtoExistente = produtos.find((p) => p.id === produtoId)
-      const novoTotal = produtoExistente.quantidade + qtd
-      const novoCustoMedio =
-        ((produtoExistente.preco_custo * produtoExistente.quantidade) + (preco * qtd)) / novoTotal
-      await supabase
-        .from('estoque_produtos')
-        .update({ quantidade: novoTotal, preco_custo: novoCustoMedio })
-        .eq('id', produtoId)
-    } else {
-      const { data } = await supabase
-        .from('estoque_produtos')
+    try {
+      // Se o produto já existir → atualiza
+      if (produtoId) {
+        const produtoExistente = produtos.find((p) => p.id === produtoId)
+        const novoTotal = (produtoExistente?.quantidade || 0) + qtd
+        const novoCustoMedio =
+          ((produtoExistente?.preco_custo || 0) * (produtoExistente?.quantidade || 0) + preco * qtd) /
+          novoTotal
+
+        await supabase
+          .from('estoque_produtos')
+          .update({ quantidade: novoTotal, preco_custo: novoCustoMedio })
+          .eq('id', produtoId)
+      } else {
+        // Se for novo produto → insere
+        const { data: novoProduto, error: insertError } = await supabase
+          .from('estoque_produtos')
+          .insert([
+            {
+              nome: formData.nome,
+              descricao: formData.descricao,
+              preco_custo: preco,
+              quantidade: qtd,
+              margem_lucro: 0
+            }
+          ])
+          .select()
+
+        if (insertError) throw insertError
+        produtoId = novoProduto?.[0]?.id
+      }
+
+      // Sempre registra no histórico
+      const { error: histError } = await supabase
+        .from('estoque_historico')
         .insert([
           {
+            produto_id: produtoId,
             nome: formData.nome,
             descricao: formData.descricao,
             preco_custo: preco,
-            quantidade: qtd,
-            margem_lucro: 0
+            quantidade: qtd
           }
         ])
-        .select()
-      produtoId = data?.[0]?.id
+      if (histError) throw histError
+
+      // Resetar formulário
+      setFormData({
+        nome: '',
+        descricao: '',
+        preco_custo: '',
+        quantidade: '',
+        produto_existente: ''
+      })
+      setShowForm(false)
+      carregarProdutos()
+      carregarHistorico()
+    } catch (err) {
+      console.error('Erro ao adicionar entrada:', err)
     }
-
-    await supabase.from('estoque_historico').insert([
-      {
-        produto_id: produtoId,
-        nome: formData.nome,
-        descricao: formData.descricao,
-        preco_custo: preco,
-        quantidade: qtd
-      }
-    ])
-
-    setFormData({ nome: '', descricao: '', preco_custo: '', quantidade: '', produto_existente: '' })
-    setShowForm(false)
-    carregarProdutos()
-    carregarHistorico()
   }
 
+  // 🔹 Excluir histórico
   const excluirHistorico = async (id) => {
     await supabase.from('estoque_historico').delete().eq('id', id)
     carregarHistorico()
   }
 
+  // 🔹 Atualizar margem de lucro
   const atualizarMargem = async (id, valor) => {
-    await supabase.from('estoque_produtos').update({ margem_lucro: parseFloat(valor) }).eq('id', id)
+    const num = parseFloat(valor)
+    if (isNaN(num)) return
+    await supabase.from('estoque_produtos').update({ margem_lucro: num }).eq('id', id)
     carregarProdutos()
   }
 
@@ -100,7 +140,7 @@ export default function Estoque() {
         </button>
       </div>
 
-      {/* Formulário flutuante */}
+      {/* Formulário */}
       {showForm && (
         <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6 mb-8">
           <h2 className="text-lg font-semibold mb-4">Nova Entrada</h2>
@@ -164,89 +204,94 @@ export default function Estoque() {
       {/* Produtos */}
       <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-lg p-6 mb-8 overflow-x-auto">
         <h2 className="text-xl font-semibold mb-4">Produtos no Estoque</h2>
-        <table className="min-w-full text-left text-sm md:text-base">
-          <thead>
-            <tr className="text-gray-400 border-b border-gray-700">
-              <th className="py-2 px-2">Nome</th>
-              <th className="px-2">Descrição</th>
-              <th className="px-2">Custo Médio</th>
-              <th className="px-2">Quantidade</th>
-              <th className="px-2">Margem Lucro (%)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {produtos.map((p) => (
-              <tr
-                key={p.id}
-                className="border-b border-gray-800 hover:bg-gray-700 transition"
-              >
-                <td className="py-2 px-2">{p.nome}</td>
-                <td className="px-2">{p.descricao}</td>
-                <td className="px-2">R$ {p.preco_custo.toFixed(2).replace('.', ',')}</td>
-                <td className="px-2">{p.quantidade}</td>
-                <td className="px-2">
-                  <input
-                    type="number"
-                    value={p.margem_lucro || ''}
-                    onChange={(e) => atualizarMargem(p.id, e.target.value)}
-                    className="w-20 p-1 rounded-md bg-gray-900 border border-gray-700"
-                  />
-                </td>
+        {produtos.length === 0 ? (
+          <p className="text-gray-400">Nenhum produto cadastrado ainda.</p>
+        ) : (
+          <table className="min-w-full text-left text-sm md:text-base">
+            <thead>
+              <tr className="text-gray-400 border-b border-gray-700">
+                <th className="py-2 px-2">Nome</th>
+                <th className="px-2">Descrição</th>
+                <th className="px-2">Custo Médio</th>
+                <th className="px-2">Qtd</th>
+                <th className="px-2">Margem Lucro (%)</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {produtos.map((p) => (
+                <tr key={p.id} className="border-b border-gray-800 hover:bg-gray-700 transition">
+                  <td className="py-2 px-2">{p.nome}</td>
+                  <td className="px-2">{p.descricao || '-'}</td>
+                  <td className="px-2">R$ {Number(p.preco_custo || 0).toFixed(2).replace('.', ',')}</td>
+                  <td className="px-2">{p.quantidade}</td>
+                  <td className="px-2">
+                    <input
+                      type="number"
+                      value={p.margem_lucro ?? ''}
+                      onChange={(e) => atualizarMargem(p.id, e.target.value)}
+                      className="w-20 p-1 rounded-md bg-gray-900 border border-gray-700"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Histórico */}
       <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-lg p-6 overflow-x-auto">
         <h2 className="text-xl font-semibold mb-4">Histórico de Entradas</h2>
-        <table className="min-w-full text-left text-sm md:text-base">
-          <thead>
-            <tr className="text-gray-400 border-b border-gray-700">
-              <th className="py-2 px-2">Nome</th>
-              <th className="px-2">Descrição</th>
-              <th className="px-2">Custo</th>
-              <th className="px-2">Qtd</th>
-              <th className="px-2">Data</th>
-              <th className="px-2">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {historico.map((h) => (
-              <tr
-                key={h.id}
-                className="border-b border-gray-800 hover:bg-gray-700 transition"
-              >
-                <td className="py-2 px-2">{h.nome}</td>
-                <td className="px-2">{h.descricao}</td>
-                <td className="px-2">R$ {h.preco_custo.toFixed(2).replace('.', ',')}</td>
-                <td className="px-2">{h.quantidade}</td>
-                <td className="px-2">{new Date(h.data_entrada).toLocaleDateString('pt-BR')}</td>
-                <td className="px-2 flex gap-2">
-                  <button
-                    onClick={() => {
-                      const novaDesc = prompt('Nova descrição:', h.descricao)
-                      if (novaDesc !== null) {
-                        supabase.from('estoque_historico').update({ descricao: novaDesc }).eq('id', h.id)
-                        carregarHistorico()
-                      }
-                    }}
-                    className="text-blue-400 hover:text-blue-600"
-                  >
-                    <Pencil size={18} />
-                  </button>
-                  <button
-                    onClick={() => excluirHistorico(h.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </td>
+        {historico.length === 0 ? (
+          <p className="text-gray-400">Nenhuma entrada registrada.</p>
+        ) : (
+          <table className="min-w-full text-left text-sm md:text-base">
+            <thead>
+              <tr className="text-gray-400 border-b border-gray-700">
+                <th className="py-2 px-2">Nome</th>
+                <th className="px-2">Descrição</th>
+                <th className="px-2">Custo</th>
+                <th className="px-2">Qtd</th>
+                <th className="px-2">Data</th>
+                <th className="px-2">Ações</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {historico.map((h) => (
+                <tr key={h.id} className="border-b border-gray-800 hover:bg-gray-700 transition">
+                  <td className="py-2 px-2">{h.nome}</td>
+                  <td className="px-2">{h.descricao || '-'}</td>
+                  <td className="px-2">R$ {Number(h.preco_custo).toFixed(2).replace('.', ',')}</td>
+                  <td className="px-2">{h.quantidade}</td>
+                  <td className="px-2">{new Date(h.data_entrada).toLocaleDateString('pt-BR')}</td>
+                  <td className="px-2 flex gap-2">
+                    <button
+                      onClick={async () => {
+                        const novaDesc = prompt('Nova descrição:', h.descricao || '')
+                        if (novaDesc !== null) {
+                          await supabase
+                            .from('estoque_historico')
+                            .update({ descricao: novaDesc })
+                            .eq('id', h.id)
+                          carregarHistorico()
+                        }
+                      }}
+                      className="text-blue-400 hover:text-blue-600"
+                    >
+                      <Pencil size={18} />
+                    </button>
+                    <button
+                      onClick={() => excluirHistorico(h.id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   )
