@@ -1,6 +1,6 @@
 // /pages/estoque.jsx
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { supabase } from '../lib/supabase'
 import { Plus, Trash2, Pencil } from 'lucide-react'
 
 export default function Estoque() {
