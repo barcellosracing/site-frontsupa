@@ -1,15 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { isAdmin } from "../lib/admin";
-import { FiPackage, FiTrash2 } from "react-icons/fi";
 
 export default function Produtos() {
   const [produtos, setProdutos] = useState([]);
-  const [titulo, setTitulo] = useState("");
-  const [valor, setValor] = useState("");
-  const [descricao, setDescricao] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [mostrarForm, setMostrarForm] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     buscarProdutos();
@@ -19,166 +13,75 @@ export default function Produtos() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from("produtos")
-        .select("*")
+        .from("estoque_produtos")
+        .select("id, nome, descricao, preco_custo, margem_lucro, quantidade")
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Erro ao buscar produtos:", error);
-        setProdutos([]);
-      } else {
-        setProdutos(data || []);
-      }
+      if (error) throw error;
+
+      // Calcular valor de venda e status
+      const produtosComValor = (data || []).map((p) => {
+        const precoCusto = Number(p.preco_custo || 0);
+        const margemLucro = Number(p.margem_lucro || 0);
+        const valorVenda = precoCusto + precoCusto * (margemLucro / 100);
+
+        return {
+          ...p,
+          valor_venda: valorVenda.toFixed(2),
+          status: p.quantidade > 0 ? "Disponível" : "Sem estoque",
+        };
+      });
+
+      setProdutos(produtosComValor);
     } catch (e) {
-      console.error(e);
+      console.error("Erro ao buscar produtos:", e);
       setProdutos([]);
     } finally {
       setLoading(false);
     }
   }
 
-  async function adicionarProduto(e) {
-    e.preventDefault();
-    if (!isAdmin()) {
-      alert("Apenas administradores podem adicionar produtos.");
-      return;
-    }
-
-    if (!titulo.trim() || !valor.trim()) {
-      alert("Preencha pelo menos o título e o valor do produto.");
-      return;
-    }
-
-    try {
-      await supabase.from("produtos").insert([
-        {
-          titulo,
-          valor,
-          descricao,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      setTitulo("");
-      setValor("");
-      setDescricao("");
-      setMostrarForm(false);
-      buscarProdutos();
-    } catch (e) {
-      console.error("Erro ao adicionar produto:", e);
-    }
-  }
-
-  async function removerProduto(id) {
-    if (!isAdmin()) {
-      alert("Apenas administradores podem remover produtos.");
-      return;
-    }
-    if (!window.confirm("Tem certeza que deseja excluir este produto?")) return;
-
-    try {
-      await supabase.from("produtos").delete().eq("id", id);
-      buscarProdutos();
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Cabeçalho */}
+    <div className="max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-yellow-500">Produtos</h2>
-
-        {isAdmin() && (
-          <button
-            onClick={() => setMostrarForm(!mostrarForm)}
-            className="p-2 rounded-full bg-yellow-500 text-black hover:bg-yellow-400 transition-all shadow-lg border border-yellow-600"
-            title={mostrarForm ? "Cancelar" : "Cadastrar Produto"}
-          >
-            <FiPackage className="w-5 h-5" />
-          </button>
-        )}
       </div>
 
-      {/* Formulário de cadastro */}
-      {isAdmin() && mostrarForm && (
-        <form
-          onSubmit={adicionarProduto}
-          className="bg-gray-900 border border-yellow-600 rounded-2xl p-5 mb-6 shadow-lg transition-all"
-        >
-          <div className="mb-3">
-            <label className="block text-sm text-gray-300 mb-1">Título</label>
-            <input
-              className="w-full p-2 rounded-md bg-gray-800 border border-gray-700 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Nome do produto"
-            />
-          </div>
-
-          <div className="mb-3">
-            <label className="block text-sm text-gray-300 mb-1">Valor</label>
-            <input
-              className="w-full p-2 rounded-md bg-gray-800 border border-gray-700 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none"
-              value={valor}
-              onChange={(e) => setValor(e.target.value)}
-              placeholder="Ex: 99.90"
-            />
-          </div>
-
-          <div className="mb-3">
-            <label className="block text-sm text-gray-300 mb-1">Descrição</label>
-            <input
-              className="w-full p-2 rounded-md bg-gray-800 border border-gray-700 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none"
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              placeholder="Detalhes adicionais do produto"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-yellow-500 text-black font-semibold py-2 rounded-lg hover:bg-yellow-400 transition-all"
-          >
-            Salvar Produto
-          </button>
-        </form>
-      )}
-
-      {/* Lista de produtos */}
       {loading ? (
-        <div className="text-gray-400">Carregando...</div>
+        <div className="text-gray-400">Carregando produtos...</div>
       ) : produtos.length === 0 ? (
-        <div className="text-gray-500 italic">
-          Nenhum produto cadastrado ainda.
-        </div>
+        <div className="text-gray-500 italic">Nenhum produto cadastrado ainda.</div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {produtos.map((p) => (
             <div
               key={p.id}
-              className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex justify-between items-start hover:border-yellow-600 hover:shadow-gold transition-all"
+              className="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-lg hover:border-yellow-600 transition-all flex flex-col justify-between"
             >
               <div>
-                <div className="font-semibold text-yellow-400 text-lg">
-                  {p.titulo}
-                </div>
-                <div className="text-sm text-gray-400 mt-1">
-                  💰 R$ {p.valor}
-                  {p.descricao ? <span> • {p.descricao}</span> : ""}
-                </div>
+                <h3 className="text-lg font-semibold text-yellow-400 mb-1">{p.nome}</h3>
+                <p className="text-sm text-gray-400 mb-3">
+                  {p.descricao || "Sem descrição."}
+                </p>
+                <p className="text-gray-300">
+                  💰 <span className="text-yellow-400">R$ {p.valor_venda}</span>
+                </p>
               </div>
 
-              {isAdmin() && (
-                <button
-                  onClick={() => removerProduto(p.id)}
-                  className="text-red-500 hover:text-red-400 transition"
-                  title="Excluir produto"
+              <div className="mt-4 flex items-center justify-between">
+                <span
+                  className={`text-xs font-bold px-3 py-1 rounded-full ${
+                    p.status === "Disponível"
+                      ? "bg-green-600 text-white"
+                      : "bg-red-600 text-white"
+                  }`}
                 >
-                  <FiTrash2 className="w-5 h-5" />
-                </button>
-              )}
+                  {p.status}
+                </span>
+                <span className="text-xs text-gray-500">
+                  Quantidade: {p.quantidade}
+                </span>
+              </div>
             </div>
           ))}
         </div>
