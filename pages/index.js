@@ -39,7 +39,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
         {/* Card Clientes */}
         <Link href="/clients" className="group">
           <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center transition transform hover:scale-105 hover:shadow-gold cursor-pointer">
@@ -85,6 +85,14 @@ export default function Dashboard() {
           <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center transition transform hover:scale-105 hover:shadow-gold cursor-pointer">
             <div className="text-sm text-yellow-500 font-semibold mb-2 text-center">Relatórios</div>
             <div className="text-xl">📊</div>
+          </div>
+        </Link>
+
+        {/* 🟡 Card Estoque (novo) */}
+        <Link href="/estoque" className="group">
+          <div className="bg-gray-800 border border-yellow-600 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center transition transform hover:scale-105 hover:shadow-yellow-500 cursor-pointer">
+            <div className="text-sm text-yellow-400 font-semibold mb-2 text-center">Estoque</div>
+            <div className="text-2xl">📦</div>
           </div>
         </Link>
       </div>
