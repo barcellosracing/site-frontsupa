@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 
 export default function Produtos() {
   const [produtos, setProdutos] = useState([]);
+  const [busca, setBusca] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,7 +20,6 @@ export default function Produtos() {
 
       if (error) throw error;
 
-      // Calcular valor de venda e status
       const produtosComValor = (data || []).map((p) => {
         const precoCusto = Number(p.preco_custo || 0);
         const margemLucro = Number(p.margem_lucro || 0);
@@ -41,34 +41,55 @@ export default function Produtos() {
     }
   }
 
+  // Filtragem dinâmica conforme digita
+  const produtosFiltrados = produtos.filter((p) =>
+    p.nome.toLowerCase().includes(busca.toLowerCase())
+  );
+
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+      {/* Cabeçalho */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
         <h2 className="text-2xl font-semibold text-yellow-500">Produtos</h2>
+
+        {/* Campo de busca */}
+        <input
+          type="text"
+          placeholder="Buscar produto..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          className="w-full sm:w-64 px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+        />
       </div>
 
+      {/* Conteúdo */}
       {loading ? (
         <div className="text-gray-400">Carregando produtos...</div>
-      ) : produtos.length === 0 ? (
-        <div className="text-gray-500 italic">Nenhum produto cadastrado ainda.</div>
+      ) : produtosFiltrados.length === 0 ? (
+        <div className="text-gray-500 italic">Nenhum produto encontrado.</div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {produtos.map((p) => (
+          {produtosFiltrados.map((p) => (
             <div
               key={p.id}
               className="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-lg hover:border-yellow-600 transition-all flex flex-col justify-between"
             >
               <div>
-                <h3 className="text-lg font-semibold text-yellow-400 mb-1">{p.nome}</h3>
+                <h3 className="text-lg font-semibold text-yellow-400 mb-1">
+                  {p.nome}
+                </h3>
                 <p className="text-sm text-gray-400 mb-3">
                   {p.descricao || "Sem descrição."}
                 </p>
                 <p className="text-gray-300">
-                  💰 <span className="text-yellow-400">R$ {p.valor_venda}</span>
+                  💰{" "}
+                  <span className="text-yellow-400">
+                    R$ {p.valor_venda}
+                  </span>
                 </p>
               </div>
 
-              <div className="mt-4 flex items-center justify-between">
+              <div className="mt-4">
                 <span
                   className={`text-xs font-bold px-3 py-1 rounded-full ${
                     p.status === "Disponível"
@@ -77,9 +98,6 @@ export default function Produtos() {
                   }`}
                 >
                   {p.status}
-                </span>
-                <span className="text-xs text-gray-500">
-                  Quantidade: {p.quantidade}
                 </span>
               </div>
             </div>
