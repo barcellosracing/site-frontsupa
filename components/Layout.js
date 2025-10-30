@@ -45,8 +45,10 @@ export default function Layout({ children }) {
     { name: "Orçamentos", href: "/orcamentos" },
     { name: "Relatórios", href: "/relatorios" },
     { name: "Investimentos", href: "/investments" },
+    { name: "Estoque", href: "/estoque" },
     { name: "Login", href: "/login" },
   ];
+
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-950 text-white">
