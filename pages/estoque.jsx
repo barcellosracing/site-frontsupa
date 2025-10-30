@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { supabase } from '../lib/supabase'
 import { Plus, Trash2, Pencil, X } from 'lucide-react'
 
 function Toast({ message, type, onClose }) {
