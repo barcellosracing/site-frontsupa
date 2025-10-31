@@ -21,7 +21,6 @@ export default function Estoque() {
     try {
       const nomeArquivo = `${Date.now()}_${arquivo.name.replace(/\s/g, "_")}`;
 
-      // Upload
       const { error: uploadError } = await supabase.storage
         .from("produtos")
         .upload(nomeArquivo, arquivo, { cacheControl: "3600", upsert: false });
@@ -32,7 +31,6 @@ export default function Estoque() {
         return null;
       }
 
-      // Obter URL pública
       const { data: urlData, error: urlError } = supabase.storage
         .from("produtos")
         .getPublicUrl(nomeArquivo);
@@ -51,17 +49,28 @@ export default function Estoque() {
     }
   }
 
-  // Função para "salvar" apenas o upload da imagem
-  async function salvarProduto(e) {
+  // Função para processar o formulário (apenas upload)
+  async function processarProduto(e) {
     e.preventDefault();
-    setLoading(true);
 
-    let fotoUrl = null;
-    if (form.foto) {
-      fotoUrl = await uploadImagem(form.foto);
+    if (!form.foto) {
+      alert("Selecione uma imagem!");
+      return;
     }
 
-    alert("Produto processado! URL da imagem: " + (fotoUrl || "Nenhuma"));
+    setLoading(true);
+    const fotoUrl = await uploadImagem(form.foto);
+
+    if (fotoUrl) {
+      alert("Produto processado com sucesso! URL da imagem: " + fotoUrl);
+      console.log({
+        nome: form.nome,
+        descricao: form.descricao,
+        preco_medio: form.preco_medio,
+        margem_lucro: form.margem_lucro,
+        image_url: fotoUrl,
+      });
+    }
 
     // Reset do formulário
     setForm({
@@ -94,7 +103,7 @@ export default function Estoque() {
       {/* Formulário */}
       {mostrarForm && (
         <form
-          onSubmit={salvarProduto}
+          onSubmit={processarProduto}
           className="bg-gray-900 border border-yellow-600 rounded-2xl p-5 mb-6 shadow-lg"
         >
           <div className="grid gap-3">
