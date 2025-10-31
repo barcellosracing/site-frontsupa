@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "../lib/supabase";
-import { FiPlus, FiTrash2, FiUpload } from "react-icons/fi";
+import { FiPlus, FiUpload } from "react-icons/fi";
 
 export default function Estoque() {
-  const [produtos, setProdutos] = useState([]);
   const [form, setForm] = useState({
     nome: "",
     descricao: "",
@@ -15,30 +14,17 @@ export default function Estoque() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    carregarProdutos();
-  }, []);
-
-  // Função para carregar produtos do Supabase
-  async function carregarProdutos() {
-    const { data, error } = await supabase.from("products").select("*");
-    if (error) console.error("Erro ao carregar produtos:", error);
-    else setProdutos(data || []);
-  }
-
-  // Função de upload seguro
+  // Função de upload para o bucket "produtos"
   async function uploadImagem(arquivo) {
     if (!arquivo) return null;
 
     try {
-      const nomeArquivo = `${Date.now()}_${arquivo.name.replace(/\s/g, "_")}`; // evita espaços
+      const nomeArquivo = `${Date.now()}_${arquivo.name.replace(/\s/g, "_")}`;
 
+      // Upload
       const { error: uploadError } = await supabase.storage
         .from("produtos")
-        .upload(nomeArquivo, arquivo, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+        .upload(nomeArquivo, arquivo, { cacheControl: "3600", upsert: false });
 
       if (uploadError) {
         console.error("Erro ao enviar imagem:", uploadError);
@@ -46,6 +32,7 @@ export default function Estoque() {
         return null;
       }
 
+      // Obter URL pública
       const { data: urlData, error: urlError } = supabase.storage
         .from("produtos")
         .getPublicUrl(nomeArquivo);
@@ -64,7 +51,7 @@ export default function Estoque() {
     }
   }
 
-  // Função para salvar produto
+  // Função para "salvar" apenas o upload da imagem
   async function salvarProduto(e) {
     e.preventDefault();
     setLoading(true);
@@ -74,45 +61,23 @@ export default function Estoque() {
       fotoUrl = await uploadImagem(form.foto);
     }
 
-    const { error } = await supabase.from("products").insert([
-      {
-        name: form.nome,
-        description: form.descricao,
-        price: parseFloat(form.preco_medio) || 0,
-        profit_margin: parseFloat(form.margem_lucro) || 0,
-        image_url: fotoUrl,
-      },
-    ]);
+    alert("Produto processado! URL da imagem: " + (fotoUrl || "Nenhuma"));
 
-    if (error) {
-      console.error("Erro ao salvar produto:", error);
-      alert("Erro ao salvar produto");
-    } else {
-      setMostrarForm(false);
-      setForm({
-        nome: "",
-        descricao: "",
-        preco_medio: "",
-        margem_lucro: "",
-        foto: null,
-        preview: null,
-      });
-      carregarProdutos();
-    }
-
+    // Reset do formulário
+    setForm({
+      nome: "",
+      descricao: "",
+      preco_medio: "",
+      margem_lucro: "",
+      foto: null,
+      preview: null,
+    });
+    setMostrarForm(false);
     setLoading(false);
   }
 
-  // Função para remover produto
-  async function removerProduto(id) {
-    if (!confirm("Tem certeza que deseja excluir este produto?")) return;
-    const { error } = await supabase.from("products").delete().eq("id", id);
-    if (error) alert("Erro ao excluir produto");
-    carregarProdutos();
-  }
-
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto p-4">
       {/* Cabeçalho */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-yellow-500">
@@ -144,18 +109,14 @@ export default function Estoque() {
             <textarea
               placeholder="Descrição"
               value={form.descricao}
-              onChange={(e) =>
-                setForm({ ...form, descricao: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
               className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
             />
             <input
               type="number"
               placeholder="Preço Médio"
               value={form.preco_medio}
-              onChange={(e) =>
-                setForm({ ...form, preco_medio: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, preco_medio: e.target.value })}
               className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
               required
             />
@@ -163,9 +124,7 @@ export default function Estoque() {
               type="number"
               placeholder="Margem de Lucro (%)"
               value={form.margem_lucro}
-              onChange={(e) =>
-                setForm({ ...form, margem_lucro: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, margem_lucro: e.target.value })}
               className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
             />
 
@@ -206,45 +165,11 @@ export default function Estoque() {
               className="bg-yellow-500 text-black py-2 rounded-lg hover:bg-yellow-400"
               disabled={loading}
             >
-              {loading ? "Salvando..." : "Salvar Produto"}
+              {loading ? "Processando..." : "Processar Produto"}
             </button>
           </div>
         </form>
       )}
-
-      {/* Lista de produtos */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {produtos.map((p) => (
-          <div
-            key={p.id}
-            className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex justify-between items-start hover:border-yellow-600"
-          >
-            <div>
-              <div className="font-semibold text-yellow-400 text-lg">
-                {p.name}
-              </div>
-              <div className="text-sm text-gray-400 mt-1">{p.description}</div>
-              <div className="text-sm text-gray-300 mt-1">
-                💰 R$ {p.price.toFixed(2)}
-              </div>
-              {p.image_url && (
-                <img
-                  src={p.image_url}
-                  alt={p.name}
-                  className="mt-2 w-32 h-32 object-cover rounded-lg border border-gray-700 cursor-pointer"
-                  onClick={() => window.open(p.image_url, "_blank")}
-                />
-              )}
-            </div>
-            <button
-              onClick={() => removerProduto(p.id)}
-              className="text-red-500 hover:text-red-400 transition"
-            >
-              <FiTrash2 className="w-5 h-5" />
-            </button>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
