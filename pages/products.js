@@ -85,12 +85,12 @@ export default function Produtos() {
               key={p.id}
               className="flex items-center gap-3 border border-gray-800 rounded-2xl p-3 bg-gray-950 shadow-sm hover:border-yellow-600 transition"
             >
-              {p.imagem_url && (
+              {p.foto_url && (
                 <img
-                  src={p.imagem_url}
+                  src={p.foto_url}
                   alt={p.nome}
                   className="w-20 h-20 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-90"
-                  onClick={() => setImagemExpandida(p.imagem_url)}
+                  onClick={() => setImagemExpandida(p.foto_url)}
                 />
               )}
 
