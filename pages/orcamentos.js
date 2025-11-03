@@ -1,5 +1,5 @@
 // pages/orcamentos.js  (ou Orçamentos.jsx)
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { isAdmin } from "../lib/admin";
 import { FiPlus, FiX, FiTrash2, FiSearch } from "react-icons/fi";
@@ -23,6 +23,7 @@ export default function Orcamentos() {
   const [clienteId, setClienteId] = useState("");
   const [buscaCliente, setBuscaCliente] = useState("");
   const [sugestoesCliente, setSugestoesCliente] = useState([]);
+  const clienteInputRef = useRef(null);
 
   // form - item autocomplete
   const [tipoAtual, setTipoAtual] = useState("produto"); // 'produto' | 'serviço'
@@ -30,6 +31,7 @@ export default function Orcamentos() {
   const [sugestoesItens, setSugestoesItens] = useState([]);
   const [itemSelecionado, setItemSelecionado] = useState(null);
   const [quantidade, setQuantidade] = useState(1);
+  const itemInputRef = useRef(null);
 
   // itens do orçamento em edição
   const [itens, setItens] = useState([]);
@@ -76,7 +78,7 @@ export default function Orcamentos() {
       setSugestoesCliente([]);
       return;
     }
-    setSugestoesCliente(clientes.filter((c) => c.nome?.toLowerCase().includes(q)));
+    setSugestoesCliente(clientes.filter((c) => (c.nome || "").toLowerCase().includes(q)));
   }, [buscaCliente, clientes]);
 
   // ---------- AUTOCOMPLETE ITENS ----------
@@ -87,9 +89,9 @@ export default function Orcamentos() {
       return;
     }
     if (tipoAtual === "produto") {
-      setSugestoesItens(produtos.filter((p) => p.nome?.toLowerCase().includes(q)));
+      setSugestoesItens(produtos.filter((p) => (p.nome || "").toLowerCase().includes(q)));
     } else {
-      setSugestoesItens(servicos.filter((s) => s.titulo?.toLowerCase().includes(q)));
+      setSugestoesItens(servicos.filter((s) => (s.titulo || "").toLowerCase().includes(q)));
     }
   }, [buscaItem, tipoAtual, produtos, servicos]);
 
@@ -100,7 +102,7 @@ export default function Orcamentos() {
       return;
     }
     const qtd = parseInt(quantidade || 1, 10);
-    if (qtd <= 0) {
+    if (isNaN(qtd) || qtd <= 0) {
       toast.error("Quantidade deve ser maior que 0.");
       return;
     }
@@ -109,38 +111,42 @@ export default function Orcamentos() {
       const p = produtos.find((x) => x.id === itemSelecionado);
       if (!p) return toast.error("Produto inválido.");
       if (qtd > (p.quantidade || 0)) return toast.error(`Estoque insuficiente. Disponível: ${p.quantidade}`);
+      const valor = Number(p.valor ?? p.preco_custo ?? 0);
       setItens((prev) => [
         ...prev,
         {
           tipo: "produto",
           item_id: p.id,
           nome: p.nome,
-          valor_unitario: parseFloat(p.valor ?? p.preco_custo ?? 0),
+          valor_unitario: valor,
           quantidade: qtd,
-          subtotal: parseFloat(((p.valor ?? p.preco_custo ?? 0) * qtd).toFixed(2)),
+          subtotal: Number((valor * qtd).toFixed(2)),
         },
       ]);
     } else {
       const s = servicos.find((x) => x.id === itemSelecionado);
       if (!s) return toast.error("Serviço inválido.");
+      const valor = Number(s.valor ?? 0);
       setItens((prev) => [
         ...prev,
         {
           tipo: "serviço",
           item_id: s.id,
           nome: s.titulo,
-          valor_unitario: parseFloat(s.valor ?? 0),
+          valor_unitario: valor,
           quantidade: qtd,
-          subtotal: parseFloat(((s.valor ?? 0) * qtd).toFixed(2)),
+          subtotal: Number((valor * qtd).toFixed(2)),
         },
       ]);
     }
 
-    // limpa input e sugestões (fechar na primeira clicada já tratado no onMouseDown)
+    // limpa input e sugestões (fechar na primeira clicada garantido com onMouseDown + blur)
     setBuscaItem("");
     setSugestoesItens([]);
     setItemSelecionado(null);
     setQuantidade(1);
+    // remove foco do input (se existir)
+    itemInputRef.current?.blur();
   }
 
   function removerItem(idx) {
@@ -165,7 +171,7 @@ export default function Orcamentos() {
 
     setLoading(true);
     try {
-      const total = itens.reduce((s, it) => s + (it.subtotal || it.valor_unitario * it.quantidade), 0);
+      const total = itens.reduce((s, it) => s + (Number(it.subtotal) || Number(it.valor_unitario) * Number(it.quantidade)), 0);
       const created_at = new Date().toISOString();
 
       // inserir orçamento
@@ -176,7 +182,7 @@ export default function Orcamentos() {
         .single();
       if (errOrc) throw errOrc;
 
-      // formatar itens segundo sua estrutura (confirmada via imagem)
+      // formatar itens segundo estrutura confirmada (tipo, item_id, quantidade, valor_unitario, subtotal)
       const itensParaInserir = itens.map((it) => ({
         orcamento_id: orcamento.id,
         tipo: it.tipo === "produto" ? "produto" : "serviço",
@@ -250,7 +256,7 @@ export default function Orcamentos() {
             console.warn("Erro ler produto ao repor:", pErr);
             continue;
           }
-          const novaQtd = (prodAtual.quantidade || 0) + (it.quantidade || 0);
+          const novaQtd = (prodAtual.quantidade || 0) + (Number(it.quantidade) || 0);
           await supabase.from("estoque_produtos").update({ quantidade: novaQtd }).eq("id", it.item_id);
         }
       }
@@ -317,15 +323,32 @@ export default function Orcamentos() {
         .order("id", { ascending: true });
       if (error) throw error;
 
-      // opcional: mapear nomes dos items (produto/serviço) para exibição resumida
+      // garantir tipos numéricos e obter nome do item para exibição resumida
       const itensComNome = await Promise.all(
         (itensDoOrc || []).map(async (it) => {
+          // garantir números
+          const quantidadeNum = Number(it.quantidade || 0);
+          const valorUnit = Number(it.valor_unitario || it.valor || 0);
+          const subtotalNum = Number(it.subtotal ?? (valorUnit * quantidadeNum));
+
           if (it.tipo === "produto") {
             const { data: p } = await supabase.from("estoque_produtos").select("nome").eq("id", it.item_id).single();
-            return { ...it, nome: p?.nome ?? "(produto removido)" };
+            return {
+              ...it,
+              nome: p?.nome ?? "(produto removido)",
+              quantidade: quantidadeNum,
+              valor_unitario: valorUnit,
+              subtotal: subtotalNum,
+            };
           } else {
             const { data: s } = await supabase.from("servicos").select("titulo").eq("id", it.item_id).single();
-            return { ...it, nome: s?.titulo ?? "(serviço removido)" };
+            return {
+              ...it,
+              nome: s?.titulo ?? "(serviço removido)",
+              quantidade: quantidadeNum,
+              valor_unitario: valorUnit,
+              subtotal: subtotalNum,
+            };
           }
         })
       );
@@ -411,6 +434,7 @@ export default function Orcamentos() {
             {/* cliente autocomplete */}
             <div className="relative">
               <input
+                ref={clienteInputRef}
                 type="text"
                 placeholder="Buscar cliente..."
                 className="w-full p-2 border border-gray-600 rounded bg-gray-800 text-white"
@@ -426,11 +450,13 @@ export default function Orcamentos() {
                     <div
                       key={c.id}
                       className="p-2 hover:bg-gray-800 cursor-pointer text-white"
-                      onMouseDown={() => {
-                        // onMouseDown para garantir que fecha na primeira clicada
+                      onMouseDown={(e) => {
+                        e.preventDefault();
                         setClienteId(c.id);
                         setBuscaCliente(c.nome);
                         setSugestoesCliente([]);
+                        // blur input para garantir fechamento imediato em mobile
+                        clienteInputRef.current?.blur();
                       }}
                     >
                       {c.nome}
@@ -471,6 +497,7 @@ export default function Orcamentos() {
             {/* autocomplete item */}
             <div className="relative">
               <input
+                ref={itemInputRef}
                 type="text"
                 placeholder={tipoAtual === "produto" ? "Buscar produto..." : "Buscar serviço..."}
                 className="w-full p-2 border border-gray-600 rounded bg-gray-800 text-white"
@@ -486,10 +513,13 @@ export default function Orcamentos() {
                     <div
                       key={it.id}
                       className="p-2 hover:bg-gray-800 cursor-pointer text-white"
-                      onMouseDown={() => {
+                      onMouseDown={(e) => {
+                        e.preventDefault();
                         setItemSelecionado(it.id);
                         setBuscaItem(tipoAtual === "produto" ? it.nome : it.titulo);
                         setSugestoesItens([]);
+                        // blur input para garantir fechamento imediato em mobile
+                        itemInputRef.current?.blur();
                       }}
                     >
                       {tipoAtual === "produto"
@@ -512,7 +542,7 @@ export default function Orcamentos() {
               />
               <button
                 type="button"
-                onClick={adicionarItemAtual}
+                onClick={() => adicionarItemAtual()}
                 className="px-4 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition"
               >
                 Adicionar
@@ -526,7 +556,7 @@ export default function Orcamentos() {
                   <div key={idx} className="flex justify-between items-center bg-gray-900 border border-gray-700 rounded p-2">
                     <div>
                       <div className="font-medium text-white">{it.nome}</div>
-                      <div className="text-sm text-gray-400">Qtd: {it.quantidade} • R$ {it.valor_unitario.toFixed(2)}</div>
+                      <div className="text-sm text-gray-400">Qtd: {it.quantidade} • R$ {Number(it.valor_unitario).toFixed(2)}</div>
                     </div>
                     <button type="button" className="text-red-500 hover:text-red-600" onClick={() => removerItem(idx)}>
                       <FiTrash2 size={16} />
@@ -543,7 +573,7 @@ export default function Orcamentos() {
         </form>
       )}
 
-      {/* lista de orçamentos (cards) */}
+      {/* lista de orçamentos */}
       <div className="grid gap-3">
         {orcFiltrados.map((o) => {
           const itensDoCache = cacheItensOrcamento[o.id] || [];
@@ -554,10 +584,9 @@ export default function Orcamentos() {
               key={o.id}
               layout
               initial={{ borderRadius: 12 }}
-              className="p-3 border border-gray-700 rounded-xl bg-gray-950 shadow-sm cursor-pointer"
-              onClick={() => toggleExpandir(o)}
+              className="p-3 border border-gray-700 rounded-xl bg-gray-950 shadow-sm"
             >
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center" onClick={() => toggleExpandir(o)}>
                 <div>
                   <div className="font-medium text-white text-base">{nomeCliente(o.cliente_id)}</div>
                   <div className="text-sm text-gray-400">Total: R$ {Number(o.total).toFixed(2)}</div>
@@ -610,19 +639,21 @@ export default function Orcamentos() {
                   >
                     {loading && <div className="text-sm text-gray-400">Carregando...</div>}
 
-                    {!loading && itensDoCache.length === 0 && <div className="text-sm text-gray-400">Nenhum item encontrado.</div>}
+                    {!loading && (!itensDoCache || itensDoCache.length === 0) && (
+                      <div className="text-sm text-gray-400">Nenhum item encontrado.</div>
+                    )}
 
-                    {!loading && itensDoCache.length > 0 && (
+                    {!loading && itensDoCache && itensDoCache.length > 0 && (
                       <div className="space-y-2">
                         {itensDoCache.map((it) => (
                           <div key={it.id} className="flex justify-between items-start bg-gray-900 border border-gray-700 rounded p-2">
                             <div className="max-w-[70%]">
                               <div className="font-medium text-white">{it.nome}</div>
-                              <div className="text-xs text-gray-400">{it.tipo} • Qtd: {it.quantidade}</div>
+                              <div className="text-xs text-gray-400">{it.tipo} • Qtd: {Number(it.quantidade)}</div>
                             </div>
                             <div className="text-right">
-                              <div className="text-sm text-white">R$ {Number(it.valor_unitario ?? it.valor ?? it.subtotal ?? 0).toFixed(2)}</div>
-                              <div className="text-xs text-gray-400">Subtotal: R$ {Number(it.subtotal ?? (it.valor_unitario * it.quantidade) ?? 0).toFixed(2)}</div>
+                              <div className="text-sm text-white">R$ {Number(it.valor_unitario || 0).toFixed(2)}</div>
+                              <div className="text-xs text-gray-400">Subtotal: R$ {Number(it.subtotal || (it.valor_unitario * it.quantidade) || 0).toFixed(2)}</div>
                             </div>
                           </div>
                         ))}
