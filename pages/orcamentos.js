@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { isAdmin } from '../lib/admin'
 import { FiPlus, FiX, FiTrash2, FiSearch } from 'react-icons/fi'
+import toast, { Toaster } from 'react-hot-toast'
 
 export default function Orcamentos() {
   const [orcamentos, setOrcamentos] = useState([])
@@ -23,7 +24,9 @@ export default function Orcamentos() {
   const [itemSelecionado, setItemSelecionado] = useState(null)
   const [quantidade, setQuantidade] = useState(1)
 
-  // --- BUSCAR DADOS INICIAIS ---
+  const [showClientes, setShowClientes] = useState(false)
+  const [showItens, setShowItens] = useState(false)
+
   useEffect(() => {
     buscarTudo()
   }, [])
@@ -43,10 +46,9 @@ export default function Orcamentos() {
     setProdutos((prod || []).filter((p) => p.quantidade > 0))
   }
 
-  // --- ADICIONAR ITEM ---
   function adicionarItemAtual() {
     if (!itemSelecionado) {
-      alert('Escolha um item.')
+      toast.error('Escolha um item.')
       return
     }
 
@@ -54,7 +56,7 @@ export default function Orcamentos() {
     const qtdSolicitada = parseInt(quantidade || 1, 10)
 
     if (tipoAtual === 'produto' && qtdSolicitada > origem.quantidade) {
-      alert(`Quantidade indisponível. Estoque atual: ${origem.quantidade}`)
+      toast.error(`Quantidade indisponível. Estoque atual: ${origem.quantidade}`)
       return
     }
 
@@ -69,6 +71,7 @@ export default function Orcamentos() {
     setItens((prev) => [...prev, novoItem])
     setItemBusca('')
     setItemSelecionado(null)
+    setShowItens(false)
     setQuantidade(1)
   }
 
@@ -76,19 +79,18 @@ export default function Orcamentos() {
     setItens((prev) => prev.filter((_, i) => i !== idx))
   }
 
-  // --- SALVAR ORÇAMENTO ---
   async function salvarOrcamento(e) {
     e.preventDefault()
     if (!isAdmin()) {
-      alert('Apenas administradores podem criar orçamentos.')
+      toast.error('Apenas administradores podem criar orçamentos.')
       return
     }
     if (!clienteId) {
-      alert('Selecione um cliente.')
+      toast.error('Selecione um cliente.')
       return
     }
     if (itens.length === 0) {
-      alert('Adicione pelo menos um item.')
+      toast.error('Adicione pelo menos um item.')
       return
     }
 
@@ -102,7 +104,7 @@ export default function Orcamentos() {
       .single()
 
     if (error) {
-      alert(error.message)
+      toast.error(error.message)
       return
     }
 
@@ -117,13 +119,14 @@ export default function Orcamentos() {
 
     const { error: erroItens } = await supabase.from('orcamento_itens').insert(itensFormatados)
     if (erroItens) {
-      alert(erroItens.message)
+      toast.error(erroItens.message)
       return
     }
 
-    // Atualiza estoque dos produtos orçados
+    // Atualiza estoque
     for (const it of itens.filter((x) => x.tipo === 'produto')) {
-      const novoEstoque = produtos.find((p) => p.id === it.id).quantidade - it.qtd
+      const produtoAtual = produtos.find((p) => p.id === it.id)
+      const novoEstoque = produtoAtual.quantidade - it.qtd
       await supabase.from('estoque_produtos').update({ quantidade: novoEstoque }).eq('id', it.id)
     }
 
@@ -132,25 +135,23 @@ export default function Orcamentos() {
     setClienteFiltro('')
     setMostrarForm(false)
     buscarTudo()
-    alert('Orçamento salvo com sucesso!')
+    toast.success('Orçamento salvo com sucesso!')
   }
 
-  // --- ALTERAR STATUS ---
   async function alternarStatus(o) {
     if (!isAdmin()) {
-      alert('Apenas admin.')
+      toast.error('Apenas admin.')
       return
     }
     const novoStatus = o.status === 'fechado' ? 'pendente' : 'fechado'
     const { error } = await supabase.from('orcamentos').update({ status: novoStatus }).eq('id', o.id)
     if (error) {
-      alert(error.message)
+      toast.error(error.message)
       return
     }
     buscarTudo()
   }
 
-  // --- FILTROS ---
   const filtrados = orcamentos.filter((o) => {
     const data = new Date(o.created_at)
     const mesOk = mesFiltro ? data.getMonth() + 1 === parseInt(mesFiltro) : true
@@ -167,7 +168,6 @@ export default function Orcamentos() {
     return cli ? cli.nome : '(Cliente removido)'
   }
 
-  // --- AUTOCOMPLETE ---
   const clientesFiltrados = clientes.filter((c) =>
     c.nome.toLowerCase().includes(clienteFiltro.toLowerCase())
   )
@@ -180,6 +180,8 @@ export default function Orcamentos() {
 
   return (
     <div className="relative max-w-full overflow-hidden px-3 py-2">
+      <Toaster position="top-center" toastOptions={{ duration: 2500 }} />
+
       {/* Cabeçalho */}
       <div className="flex justify-between items-center mb-3">
         <h2 className="text-xl font-semibold text-white">Orçamentos</h2>
@@ -193,7 +195,7 @@ export default function Orcamentos() {
         )}
       </div>
 
-      {/* 🔍 Filtros principais */}
+      {/* Filtros */}
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <div className="relative flex-1">
           <FiSearch className="absolute left-2 top-3 text-gray-400" />
@@ -236,12 +238,14 @@ export default function Orcamentos() {
               placeholder="Buscar cliente..."
               className="w-full p-2 border border-gray-600 rounded bg-gray-800 text-white"
               value={clienteFiltro}
+              onFocus={() => setShowClientes(true)}
+              onBlur={() => setTimeout(() => setShowClientes(false), 150)}
               onChange={(e) => {
                 setClienteFiltro(e.target.value)
                 setClienteId('')
               }}
             />
-            {clienteFiltro && (
+            {showClientes && clienteFiltro && (
               <div className="absolute z-10 bg-gray-900 border border-gray-700 rounded w-full max-h-40 overflow-y-auto">
                 {clientesFiltrados.map((c) => (
                   <div
@@ -249,6 +253,7 @@ export default function Orcamentos() {
                     onClick={() => {
                       setClienteId(c.id)
                       setClienteFiltro(c.nome)
+                      setShowClientes(false)
                     }}
                     className="p-2 text-white hover:bg-gray-800 cursor-pointer"
                   >
@@ -281,19 +286,21 @@ export default function Orcamentos() {
             </button>
           </div>
 
-          {/* Autocomplete item */}
+          {/* Item autocomplete */}
           <div className="relative mb-3">
             <input
               type="text"
               placeholder={`Buscar ${tipoAtual}...`}
               className="w-full p-2 border border-gray-600 rounded bg-gray-800 text-white"
               value={itemBusca}
+              onFocus={() => setShowItens(true)}
+              onBlur={() => setTimeout(() => setShowItens(false), 150)}
               onChange={(e) => {
                 setItemBusca(e.target.value)
                 setItemSelecionado(null)
               }}
             />
-            {itemBusca && (
+            {showItens && itemBusca && (
               <div className="absolute z-10 bg-gray-900 border border-gray-700 rounded w-full max-h-40 overflow-y-auto">
                 {(tipoAtual === 'produto' ? produtosFiltrados : servicosFiltrados).map((it) => (
                   <div
@@ -301,11 +308,13 @@ export default function Orcamentos() {
                     onClick={() => {
                       setItemSelecionado(it)
                       setItemBusca(it.nome || it.titulo)
+                      setShowItens(false)
                     }}
                     className="p-2 text-white hover:bg-gray-800 cursor-pointer"
                   >
                     {it.nome || it.titulo} — R${' '}
-                    {it.valor || it.preco_custo} {tipoAtual === 'produto' ? `(Estoque: ${it.quantidade})` : ''}
+                    {it.valor || it.preco_custo}{' '}
+                    {tipoAtual === 'produto' ? `(Estoque: ${it.quantidade})` : ''}
                   </div>
                 ))}
               </div>
@@ -366,7 +375,7 @@ export default function Orcamentos() {
         </form>
       )}
 
-      {/* 📋 Lista */}
+      {/* Lista de orçamentos */}
       <div className="grid gap-3">
         {filtrados.map((o) => (
           <div key={o.id} className="p-3 border border-gray-700 rounded-xl bg-gray-950 shadow-sm">
