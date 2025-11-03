@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
 export default function Produtos() {
   const [produtos, setProdutos] = useState([]);
   const [busca, setBusca] = useState("");
   const [imagemExpandida, setImagemExpandida] = useState(null);
-  const [categoriasAbertas, setCategoriasAbertas] = useState({});
 
   useEffect(() => {
     carregarProdutos();
   }, []);
 
   async function carregarProdutos() {
+    // Buscar produtos e histórico
     const { data: produtosData, error: produtosError } = await supabase
       .from("estoque_produtos")
       .select("*");
@@ -26,9 +26,10 @@ export default function Produtos() {
       return;
     }
 
-    // Monta produtos com preço e quantidade calculados
+    // Combinar informações
     const combinados = produtosData.map((p) => {
       const historicoDoProduto = historicoData.filter((h) => h.produto_id === p.id);
+
       const maiorPreco = Math.max(...historicoDoProduto.map((h) => h.preco_custo || 0), 0);
       const quantidadeTotal = historicoDoProduto.reduce(
         (acc, h) => acc + (h.quantidade || 0),
@@ -50,21 +51,6 @@ export default function Produtos() {
     p.nome.toLowerCase().includes(busca.toLowerCase())
   );
 
-  // Agrupar por categoria
-  const categorias = {};
-  produtosFiltrados.forEach((p) => {
-    const cat = p.categoria || "Outros";
-    if (!categorias[cat]) categorias[cat] = [];
-    categorias[cat].push(p);
-  });
-
-  const toggleCategoria = (categoria) => {
-    setCategoriasAbertas((prev) => ({
-      ...prev,
-      [categoria]: !prev[categoria],
-    }));
-  };
-
   return (
     <div className="max-w-md mx-auto p-4 text-white">
       <h2 className="text-2xl font-bold text-yellow-400 mb-4 text-center">
@@ -83,67 +69,56 @@ export default function Produtos() {
         />
       </div>
 
-      {/* Categorias */}
-      {Object.keys(categorias).length === 0 && (
+      {/* Lista de produtos */}
+      {produtosFiltrados.length === 0 && (
         <div className="text-center text-gray-500 mt-10">Nenhum produto encontrado</div>
       )}
 
-      {Object.entries(categorias).map(([categoria, lista]) => (
-        <div key={categoria} className="mb-3 border border-gray-800 rounded-xl overflow-hidden">
-          <button
-            onClick={() => toggleCategoria(categoria)}
-            className="w-full flex justify-between items-center bg-gray-800 px-4 py-3 font-semibold text-yellow-400 text-left"
-          >
-            <span>{categoria}</span>
-            {categoriasAbertas[categoria] ? (
-              <ChevronUp size={20} />
-            ) : (
-              <ChevronDown size={20} />
-            )}
-          </button>
+      <div className="flex flex-col gap-4">
+        {produtosFiltrados.map((p) => {
+          const disponivel = p.quantidade > 0;
+          const flagCor = disponivel ? "bg-green-600" : "bg-red-600";
+          const flagTexto = disponivel ? "DISPONÍVEL" : "SEM ESTOQUE";
 
-          {categoriasAbertas[categoria] && (
-            <div className="p-3 bg-gray-900 grid gap-3">
-              {lista.map((p) => {
-                const disponivel = p.quantidade > 0;
-                const flagCor = disponivel ? "bg-green-600" : "bg-red-600";
-                const flagTexto = disponivel ? "DISPONÍVEL" : "SEM ESTOQUE";
+          return (
+            <div
+              key={p.id}
+              className="flex items-center gap-3 border border-gray-800 rounded-2xl p-3 bg-gray-950 shadow-sm hover:border-yellow-600 transition"
+            >
+              {p.imagem_url && (
+                <img
+                  src={p.imagem_url}
+                  alt={p.nome}
+                  className="w-20 h-20 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-90"
+                  onClick={() => setImagemExpandida(p.imagem_url)}
+                />
+              )}
 
-                return (
-                  <div
-                    key={p.id}
-                    className="flex items-center gap-3 border border-gray-800 rounded-xl p-3 bg-gray-950 shadow-sm hover:border-yellow-600 transition"
-                  >
-                    {p.imagem_url && (
-                      <img
-                        src={p.imagem_url}
-                        alt={p.nome}
-                        className="w-16 h-16 rounded-md object-cover cursor-pointer hover:opacity-80"
-                        onClick={() => setImagemExpandida(p.imagem_url)}
-                      />
-                    )}
-
-                    <div className="flex-1">
-                      <div className="font-semibold text-yellow-400 text-base leading-tight">
-                        {p.nome}
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1">{p.descricao}</div>
-                      <div className="text-sm text-gray-200 mt-1 font-medium">
-                        💰 R$ {p.precoFinal.toFixed(2)}
-                      </div>
-                      <div
-                        className={`inline-block mt-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${flagCor}`}
-                      >
-                        {flagTexto}
-                      </div>
-                    </div>
+              <div className="flex flex-col justify-between flex-1">
+                <div>
+                  <div className="font-semibold text-yellow-400 text-base leading-tight">
+                    {p.nome}
                   </div>
-                );
-              })}
+                  <div className="text-xs text-gray-400 mt-1 line-clamp-2">
+                    {p.descricao}
+                  </div>
+                </div>
+
+                <div className="mt-2 flex items-center justify-between">
+                  <div className="text-sm text-gray-200 font-medium">
+                    💰 R$ {p.precoFinal.toFixed(2)}
+                  </div>
+                  <div
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${flagCor}`}
+                  >
+                    {flagTexto}
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
-      ))}
+          );
+        })}
+      </div>
 
       {/* Modal da imagem ampliada */}
       {imagemExpandida && (
