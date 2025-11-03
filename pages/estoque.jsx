@@ -74,6 +74,37 @@ export default function Estoque() {
     }
   }
 
+  // helper: extrai nome do arquivo (path relativo) a partir de publicUrl
+  function extrairNomeArquivoDaUrl(publicUrl) {
+    try {
+      if (!publicUrl) return null;
+      // ex: https://<domain>/storage/v1/object/public/produtos/<filename>
+      const url = new URL(publicUrl);
+      const parts = url.pathname.split("/");
+      const filename = parts.pop() || parts.pop(); // last non-empty
+      return filename;
+    } catch (err) {
+      console.error("Erro extrair nome arquivo:", err);
+      return null;
+    }
+  }
+
+  // Atualiza o preco_custo do produto para o maior preco_custo presente em estoque_historico para esse produto
+  async function atualizarPrecoMaximo(produtoId) {
+    try {
+      const { data: rows, error } = await supabase
+        .from("estoque_historico")
+        .select("preco_custo")
+        .eq("produto_id", produtoId);
+      if (error) throw error;
+      const precos = (rows || []).map((r) => parseFloat(r.preco_custo || 0));
+      const maior = precos.length ? Math.max(...precos) : 0;
+      await supabase.from("estoque_produtos").update({ preco_custo: maior }).eq("id", produtoId);
+    } catch (err) {
+      console.error("Erro atualizar preco maximo:", err);
+    }
+  }
+
   // processar cadastro / entrada
   async function processarProduto(e) {
     e.preventDefault();
@@ -122,6 +153,9 @@ export default function Estoque() {
             data_entrada: new Date(),
           },
         ]);
+
+        // garantir que preco do produto seja o maior registrado (embora aqui seja único)
+        await atualizarPrecoMaximo(data.id);
       } else if (produtoSelecionado) {
         // produto existente - adiciona quantidade e ajusta preço se necessário
         const produto = produtos.find((p) => p.id === produtoSelecionado);
@@ -139,22 +173,18 @@ export default function Estoque() {
 
         const novaQtd =
           parseInt(produto.quantidade || 0, 10) + parseInt(form.quantidade, 10);
-        // manter lógica anterior: usar o maior preço entre o existente e o informado
-        const novoPreco = Math.max(
-          parseFloat(produto.preco_custo || 0),
-          parseFloat(form.preco_custo)
-        );
 
+        // atualizamos a quantidade (o preco será recalculado com base no historico)
         await supabase
           .from("estoque_produtos")
           .update({
             quantidade: novaQtd,
-            preco_custo: novoPreco,
             // Não sobrescrever foto de produto existente aqui (upload não necessário)
           })
           .eq("id", produto.id);
 
-        await supabase.from("estoque_historico").insert([
+        // inserir registro no historico com o preco informado na entrada
+        const { error: histErr } = await supabase.from("estoque_historico").insert([
           {
             produto_id: produto.id,
             nome: produto.nome,
@@ -164,6 +194,10 @@ export default function Estoque() {
             data_entrada: new Date(),
           },
         ]);
+        if (histErr) throw histErr;
+
+        // ATENÇÃO: garantir que o preco do produto seja sempre o maior já registrado
+        await atualizarPrecoMaximo(produto.id);
       } else {
         alert("Selecione 'Novo Produto' ou escolha um produto existente.");
         setLoading(false);
@@ -240,8 +274,7 @@ export default function Estoque() {
 
       await supabase.from("estoque_produtos").update(updates).eq("id", produtoEditando.id);
 
-      // atualizar também registros do historico que tenham esse produto_id (opcional)
-      // aqui vamos atualizar apenas o nome/descricao em historico para manter consistência
+      // atualizar também registros do historico que tenham esse produto_id (manter nome/descrição consistentes)
       await supabase
         .from("estoque_historico")
         .update({ nome: produtoEditando.nome, descricao: produtoEditando.descricao })
@@ -258,19 +291,38 @@ export default function Estoque() {
     }
   }
 
+  // ao excluir produto, também remove a imagem do storage (se houver)
   async function excluirProduto(produtoId) {
-    const ok = confirm("Confirma exclusão deste produto? Essa ação excluirá o produto da tabela 'estoque_produtos'.");
+    const ok = confirm("Confirma exclusão deste produto? Essa ação excluirá o produto da tabela 'estoque_produtos' e a imagem no storage.");
     if (!ok) return;
     setLoadingOperacao(true);
 
     try {
-      // excluir produto
-      const { error } = await supabase.from("estoque_produtos").delete().eq("id", produtoId);
-      if (error) throw error;
+      // obter produto (para saber foto_url)
+      const { data: produto, error: pErr } = await supabase.from("estoque_produtos").select("*").eq("id", produtoId).single();
+      if (pErr) throw pErr;
 
-      // Observação: não estamos excluindo automaticamente histórico relacionado para preservar registros.
-      // Se você quiser remover também histórico vinculado, descomente a próxima linha:
-      // await supabase.from("estoque_historico").delete().eq("produto_id", produtoId);
+      // remover registro do banco
+      const { error: delErr } = await supabase.from("estoque_produtos").delete().eq("id", produtoId);
+      if (delErr) throw delErr;
+
+      // remover imagem do bucket (se existir)
+      if (produto && produto.foto_url) {
+        const filename = extrairNomeArquivoDaUrl(produto.foto_url);
+        if (filename) {
+          try {
+            const { error: remErr } = await supabase.storage.from("produtos").remove([filename]);
+            if (remErr) {
+              console.warn("Não foi possível remover arquivo do storage:", remErr);
+            }
+          } catch (err) {
+            console.warn("Erro ao tentar remover arquivo do storage:", err);
+          }
+        }
+      }
+
+      // NOTA: mantenho o histórico (estoque_historico) intacto para auditoria.
+      // Se preferir remover também o histórico vinculado, posso ativar aqui.
 
       await carregarProdutos();
       await carregarHistorico();
@@ -299,7 +351,7 @@ export default function Estoque() {
   // salvar edição do registro de histórico:
   // - atualiza o registro de histórico
   // - atualiza a quantidade no produto correspondente (ajusta pela diferença)
-  // - atualiza preco_custo do produto para o novo preco (decisão: sobrescrever)
+  // - atualiza preco_custo do produto para o maior valor presente no histórico
   async function salvarEdicaoHistorico(e) {
     e.preventDefault();
     if (!historicoEditando) return;
@@ -310,34 +362,30 @@ export default function Estoque() {
       const novoPreco = parseFloat(record.preco_custo || 0);
       const novaQtd = parseInt(record.quantidade || 0, 10);
 
-      // buscar produto atual
-      const { data: produto } = await supabase.from("estoque_produtos").select("*").eq("id", record.produto_id).single();
-
-      if (!produto) {
-        throw new Error("Produto vinculado não encontrado.");
-      }
-
-      const qtdAntiga = parseInt(record.__original_quantidade ?? record.quantidade, 10);
-      // Note: we stored __original_quantidade? not yet — we'll get the original row from historico state
-      // safer: buscar o historico original no array 'historico' (by id)
-      const original = historico.find((x) => x.id === record.id);
-      const qtdOriginal = original ? parseInt(original.quantidade || 0, 10) : qtdAntiga;
-
+      // buscar o historico original para calcular diferença de quantidade
+      const original = historicalOriginalById(record.id);
+      const qtdOriginal = original ? parseInt(original.quantidade || 0, 10) : novaQtd;
       const diferenca = novaQtd - qtdOriginal;
+
+      // buscar produto atual
+      const { data: produto, error: pErr } = await supabase.from("estoque_produtos").select("*").eq("id", record.produto_id).single();
+      if (pErr) throw pErr;
+
       let novaQtdProduto = parseInt(produto.quantidade || 0, 10) + diferenca;
       if (novaQtdProduto < 0) novaQtdProduto = 0;
 
       // atualizar historico
-      await supabase
+      const { error: updHistErr } = await supabase
         .from("estoque_historico")
         .update({ preco_custo: novoPreco, quantidade: novaQtd })
         .eq("id", record.id);
+      if (updHistErr) throw updHistErr;
 
-      // atualizar produto: ajuste na quantidade e definir preco_custo para novoPreco
-      await supabase
-        .from("estoque_produtos")
-        .update({ quantidade: novaQtdProduto, preco_custo: novoPreco })
-        .eq("id", produto.id);
+      // atualizar produto: ajuste na quantidade (e depois recalcular preco maximo)
+      await supabase.from("estoque_produtos").update({ quantidade: novaQtdProduto }).eq("id", produto.id);
+
+      // recalcular preco maximo com base nos historicos
+      await atualizarPrecoMaximo(produto.id);
 
       await carregarProdutos();
       await carregarHistorico();
@@ -350,7 +398,12 @@ export default function Estoque() {
     }
   }
 
-  // excluir historico: subtrai quantidade do produto correspondente
+  // função auxiliar que retorna o registro original do array 'historico' por id
+  function historicalOriginalById(id) {
+    return historico.find((x) => x.id === id);
+  }
+
+  // excluir historico: subtrai quantidade do produto correspondente e atualiza preco maximo
   async function excluirHistorico(registro) {
     const ok = confirm("Confirma exclusão deste registro de histórico? A quantidade será subtraída do produto.");
     if (!ok) return;
@@ -372,8 +425,11 @@ export default function Estoque() {
       const { error: delErr } = await supabase.from("estoque_historico").delete().eq("id", registro.id);
       if (delErr) throw delErr;
 
-      // atualizar produto
+      // atualizar produto quantidade
       await supabase.from("estoque_produtos").update({ quantidade: novaQtdProduto }).eq("id", produto.id);
+
+      // recalcular preco maximo (pode diminuir se o maior registro foi excluído)
+      await atualizarPrecoMaximo(produto.id);
 
       await carregarProdutos();
       await carregarHistorico();
@@ -385,19 +441,20 @@ export default function Estoque() {
     }
   }
 
+  // ----------------- JSX / UI (mobile-first, tabelas adaptadas) -----------------
   return (
-    <div className="max-w-6xl mx-auto p-3 sm:p-6 text-white">
+    <div className="max-w-xl mx-auto p-4 text-white">
       {/* Cabeçalho */}
-      <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-        <h2 className="text-xl sm:text-2xl font-semibold text-yellow-500">Controle de Estoque</h2>
+      <div className="flex justify-between items-center mb-4 gap-2">
+        <h2 className="text-lg font-semibold text-yellow-500">Controle de Estoque</h2>
 
         <div className="flex items-center gap-2">
           <button
             onClick={alternarTabela}
-            className="flex items-center gap-2 bg-yellow-500 text-black px-3 py-1 rounded-lg shadow-sm"
+            className="flex items-center gap-2 bg-yellow-500 text-black px-3 py-2 rounded-lg shadow-sm text-sm"
             title="Alternar Produtos / Histórico"
           >
-            <FiEye /> {tabela === "produtos" ? "Ver Histórico" : "Ver Produtos"}
+            <FiEye /> <span className="hidden sm:inline">{tabela === "produtos" ? "Ver Histórico" : "Ver Produtos"}</span>
           </button>
 
           <button
@@ -501,7 +558,7 @@ export default function Estoque() {
               placeholder="Preço de Custo"
               value={form.preco_custo}
               onChange={(e) => setForm({ ...form, preco_custo: e.target.value })}
-              className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
+              className="bg-gray-800 border border-gray-700 p-3 rounded-md text-white text-base"
               required
             />
             <input
@@ -509,7 +566,7 @@ export default function Estoque() {
               placeholder="Quantidade"
               value={form.quantidade}
               onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
-              className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
+              className="bg-gray-800 border border-gray-700 p-3 rounded-md text-white text-base"
               required
             />
 
@@ -538,7 +595,7 @@ export default function Estoque() {
             )}
 
             <div className="flex gap-2">
-              <button type="submit" disabled={loading} className="bg-yellow-500 text-black py-2 px-4 rounded-lg hover:bg-yellow-400">
+              <button type="submit" disabled={loading} className="flex-1 bg-yellow-500 text-black py-3 px-4 rounded-lg hover:bg-yellow-400 text-base">
                 {loading ? "Processando..." : "Salvar"}
               </button>
               <button
@@ -547,7 +604,7 @@ export default function Estoque() {
                   setMostrarForm(false);
                   setProdutoSelecionado("");
                 }}
-                className="bg-gray-800 border border-gray-700 py-2 px-4 rounded-lg"
+                className="flex-1 bg-gray-800 border border-gray-700 py-3 px-4 rounded-lg text-base"
               >
                 Cancelar
               </button>
@@ -559,52 +616,53 @@ export default function Estoque() {
       {/* Card de edição de produto (inline) */}
       {produtoEditando && (
         <form onSubmit={salvarEdicaoProduto} className="bg-gray-900 border border-yellow-600 rounded-2xl p-4 mb-6 shadow-lg">
-          <div className="flex justify-between items-start gap-4">
-            <div className="flex-1 grid gap-2">
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between items-center">
               <h3 className="text-yellow-400 font-semibold">Editar produto</h3>
-              <input
-                type="text"
-                value={produtoEditando.nome}
-                onChange={(e) => setProdutoEditando((p) => ({ ...p, nome: e.target.value }))}
-                className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
-                required
-              />
-              <textarea
-                value={produtoEditando.descricao || ""}
-                onChange={(e) => setProdutoEditando((p) => ({ ...p, descricao: e.target.value }))}
-                className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
-              />
-              <label className="block text-sm text-gray-400">Alterar foto (opcional)</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setProdutoEditando((p) => ({ ...p, nova_foto: file, preview: URL.createObjectURL(file) }));
-                    }
-                  }}
-                  className="text-gray-300 text-sm"
-                />
-                <FiUpload className="text-yellow-500" />
-              </div>
-              {produtoEditando.preview && (
-                <img src={produtoEditando.preview} alt="Preview" className="mt-2 w-28 h-28 object-cover rounded-lg border border-gray-700" />
-              )}
+              <button type="button" onClick={fecharEdicaoProduto} className="p-2 bg-gray-800 rounded-full">
+                <FiX />
+              </button>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <button type="submit" disabled={loadingOperacao} className="bg-yellow-500 text-black py-2 px-4 rounded-lg hover:bg-yellow-400">
+            <input
+              type="text"
+              value={produtoEditando.nome}
+              onChange={(e) => setProdutoEditando((p) => ({ ...p, nome: e.target.value }))}
+              className="bg-gray-800 border border-gray-700 p-3 rounded-md text-white text-base"
+              required
+            />
+            <textarea
+              value={produtoEditando.descricao || ""}
+              onChange={(e) => setProdutoEditando((p) => ({ ...p, descricao: e.target.value }))}
+              className="bg-gray-800 border border-gray-700 p-3 rounded-md text-white text-base"
+            />
+            <label className="block text-sm text-gray-400">Alterar foto (opcional)</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setProdutoEditando((p) => ({ ...p, nova_foto: file, preview: URL.createObjectURL(file) }));
+                  }
+                }}
+                className="text-gray-300 text-sm"
+              />
+              <FiUpload className="text-yellow-500" />
+            </div>
+            {produtoEditando.preview && (
+              <img src={produtoEditando.preview} alt="Preview" className="mt-2 w-28 h-28 object-cover rounded-lg border border-gray-700" />
+            )}
+
+            <div className="flex gap-2">
+              <button type="submit" disabled={loadingOperacao} className="flex-1 bg-yellow-500 text-black py-3 px-4 rounded-lg hover:bg-yellow-400 text-base">
                 {loadingOperacao ? "Salvando..." : "Salvar alterações"}
-              </button>
-              <button type="button" onClick={fecharEdicaoProduto} className="bg-gray-800 border border-gray-700 py-2 px-4 rounded-lg">
-                Cancelar
               </button>
               <button
                 type="button"
                 onClick={() => excluirProduto(produtoEditando.id)}
-                className="bg-red-700 text-white py-2 px-4 rounded-lg hover:bg-red-600"
+                className="flex-1 bg-red-700 text-white py-3 px-4 rounded-lg hover:bg-red-600 text-base"
               >
                 Excluir produto
               </button>
@@ -616,10 +674,17 @@ export default function Estoque() {
       {/* Card de edição de histórico (inline) */}
       {historicoEditando && (
         <form onSubmit={salvarEdicaoHistorico} className="bg-gray-900 border border-yellow-600 rounded-2xl p-4 mb-6 shadow-lg">
-          <div className="grid gap-2 sm:grid-cols-3 sm:items-end">
+          <div className="grid gap-3">
+            <div className="flex justify-between items-center">
+              <h3 className="text-yellow-400 font-semibold">Editar registro</h3>
+              <button type="button" onClick={fecharEdicaoHistorico} className="p-2 bg-gray-800 rounded-full">
+                <FiX />
+              </button>
+            </div>
+
             <div>
               <label className="text-sm text-gray-400">Produto</label>
-              <div className="text-white">{historicoEditando.nome}</div>
+              <div className="text-white text-base">{historicoEditando.nome}</div>
             </div>
             <div>
               <label className="text-sm text-gray-400">Preço de Custo</label>
@@ -628,32 +693,28 @@ export default function Estoque() {
                 step="0.01"
                 value={historicoEditando.preco_custo}
                 onChange={(e) => setHistoricoEditando((h) => ({ ...h, preco_custo: e.target.value }))}
-                className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
+                className="bg-gray-800 border border-gray-700 p-3 rounded-md text-white text-base"
                 required
               />
             </div>
+            <div>
+              <label className="text-sm text-gray-400">Quantidade</label>
+              <input
+                type="number"
+                value={historicoEditando.quantidade}
+                onChange={(e) => setHistoricoEditando((h) => ({ ...h, quantidade: e.target.value }))}
+                className="bg-gray-800 border border-gray-700 p-3 rounded-md text-white text-base"
+                required
+              />
+            </div>
+
             <div className="flex gap-2">
-              <div>
-                <label className="text-sm text-gray-400">Quantidade</label>
-                <input
-                  type="number"
-                  value={historicoEditando.quantidade}
-                  onChange={(e) => setHistoricoEditando((h) => ({ ...h, quantidade: e.target.value }))}
-                  className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
-                  required
-                />
-              </div>
-              <div className="self-end flex gap-2">
-                <button type="submit" disabled={loadingOperacao} className="bg-yellow-500 text-black py-2 px-4 rounded-lg hover:bg-yellow-400">
-                  {loadingOperacao ? "Salvando..." : "Salvar"}
-                </button>
-                <button type="button" onClick={fecharEdicaoHistorico} className="bg-gray-800 border border-gray-700 py-2 px-4 rounded-lg">
-                  Cancelar
-                </button>
-                <button type="button" onClick={() => excluirHistorico(historicoEditando)} className="bg-red-700 text-white py-2 px-4 rounded-lg">
-                  Excluir registro
-                </button>
-              </div>
+              <button type="submit" disabled={loadingOperacao} className="flex-1 bg-yellow-500 text-black py-3 px-4 rounded-lg hover:bg-yellow-400 text-base">
+                {loadingOperacao ? "Salvando..." : "Salvar"}
+              </button>
+              <button type="button" onClick={() => excluirHistorico(historicoEditando)} className="flex-1 bg-red-700 text-white py-3 px-4 rounded-lg hover:bg-red-600 text-base">
+                Excluir registro
+              </button>
             </div>
           </div>
         </form>
@@ -661,26 +722,26 @@ export default function Estoque() {
 
       {/* Modal imagem ampliada */}
       {imagemAmpliada && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center" onClick={() => setImagemAmpliada(null)}>
-          <img src={imagemAmpliada} alt="ampliada" className="max-w-[95%] max-h-[95%] rounded-lg" />
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center p-4" onClick={() => setImagemAmpliada(null)}>
+          <img src={imagemAmpliada} alt="ampliada" className="max-w-full max-h-full rounded-lg" />
           <button className="absolute top-4 right-4 text-white text-3xl" onClick={() => setImagemAmpliada(null)}>
             <FiX />
           </button>
         </div>
       )}
 
-      {/* Tabela Produtos */}
+      {/* Tabela Produtos (mobile: scroll horizontal) */}
       {tabela === "produtos" && (
         <div className="overflow-x-auto bg-gray-900 border border-gray-700 rounded-lg p-2">
-          <table className="w-full text-sm sm:text-base">
+          <table className="w-full text-sm">
             <thead className="text-yellow-400">
               <tr className="text-left">
                 <th className="p-2">Img</th>
                 <th className="p-2">Nome</th>
                 <th className="p-2">Descrição</th>
-                <th className="p-2">Preço Custo</th>
-                <th className="p-2">Quantidade</th>
-                <th className="p-2">Margem (%)</th>
+                <th className="p-2">Preço</th>
+                <th className="p-2">Qtd</th>
+                <th className="p-2">Margem</th>
                 <th className="p-2">Ações</th>
               </tr>
             </thead>
@@ -692,22 +753,22 @@ export default function Estoque() {
                       <img
                         src={p.foto_url}
                         alt={p.nome}
-                        className="w-14 h-14 object-cover rounded-lg cursor-pointer"
+                        className="w-16 h-16 object-cover rounded-lg cursor-pointer"
                         onClick={() => setImagemAmpliada(p.foto_url)}
                       />
                     ) : (
-                      <div className="w-14 h-14 flex items-center justify-center text-gray-500">—</div>
+                      <div className="w-16 h-16 flex items-center justify-center text-gray-500">—</div>
                     )}
                   </td>
-                  <td className="p-2 align-middle">{p.nome}</td>
-                  <td className="p-2 align-middle max-w-[220px] truncate">{p.descricao}</td>
-                  <td className="p-2 align-middle">R$ {Number(p.preco_custo).toFixed(2)}</td>
+                  <td className="p-2 align-middle text-base font-medium">{p.nome}</td>
+                  <td className="p-2 align-middle max-w-xs truncate text-sm">{p.descricao}</td>
+                  <td className="p-2 align-middle text-base">R$ {Number(p.preco_custo).toFixed(2)}</td>
                   <td className="p-2 align-middle">{p.quantidade}</td>
                   <td className="p-2 align-middle">
                     <input
                       type="number"
                       step="0.01"
-                      className="bg-gray-800 border border-gray-700 p-1 rounded-md w-24 text-white text-sm"
+                      className="bg-gray-800 border border-gray-700 p-2 rounded-md w-20 text-white text-sm"
                       defaultValue={p.margem_lucro ?? 0}
                       onBlur={(e) => {
                         // salva ao perder foco
@@ -720,14 +781,14 @@ export default function Estoque() {
                       <button
                         title="Editar"
                         onClick={() => abrirEdicaoProduto(p)}
-                        className="p-2 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
+                        className="p-3 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
                       >
                         <FiEdit />
                       </button>
                       <button
                         title="Excluir"
                         onClick={() => excluirProduto(p.id)}
-                        className="p-2 bg-red-700 text-white rounded-md hover:bg-red-600"
+                        className="p-3 bg-red-700 text-white rounded-md hover:bg-red-600"
                       >
                         <FiTrash2 />
                       </button>
@@ -740,15 +801,15 @@ export default function Estoque() {
         </div>
       )}
 
-      {/* Tabela Histórico */}
+      {/* Tabela Histórico (mobile: scroll horizontal) */}
       {tabela === "historico" && (
         <div className="overflow-x-auto bg-gray-900 border border-gray-700 rounded-lg p-2">
-          <table className="w-full text-sm sm:text-base">
+          <table className="w-full text-sm">
             <thead className="text-yellow-400">
               <tr className="text-left">
                 <th className="p-2">Produto</th>
                 <th className="p-2">Descrição</th>
-                <th className="p-2">Preço Custo</th>
+                <th className="p-2">Preço</th>
                 <th className="p-2">Qtd</th>
                 <th className="p-2">Data</th>
                 <th className="p-2">Ações</th>
@@ -757,24 +818,24 @@ export default function Estoque() {
             <tbody>
               {historico.map((h) => (
                 <tr key={h.id} className="border-t border-gray-700">
-                  <td className="p-2">{h.nome}</td>
-                  <td className="p-2 max-w-[240px] truncate">{h.descricao}</td>
+                  <td className="p-2 text-base">{h.nome}</td>
+                  <td className="p-2 max-w-xs truncate text-sm">{h.descricao}</td>
                   <td className="p-2">R$ {Number(h.preco_custo).toFixed(2)}</td>
                   <td className="p-2">{h.quantidade}</td>
-                  <td className="p-2">{new Date(h.data_entrada).toLocaleString("pt-BR")}</td>
+                  <td className="p-2 text-sm">{new Date(h.data_entrada).toLocaleString("pt-BR")}</td>
                   <td className="p-2">
                     <div className="flex gap-2">
                       <button
                         title="Editar registro"
                         onClick={() => abrirEdicaoHistorico(h)}
-                        className="p-2 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
+                        className="p-3 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
                       >
                         <FiEdit />
                       </button>
                       <button
                         title="Excluir registro"
                         onClick={() => excluirHistorico(h)}
-                        className="p-2 bg-red-700 text-white rounded-md hover:bg-red-600"
+                        className="p-3 bg-red-700 text-white rounded-md hover:bg-red-600"
                       >
                         <FiTrash2 />
                       </button>
