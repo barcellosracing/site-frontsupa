@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { isAdmin } from '../lib/admin'
-import { FiPlus, FiX, FiTrash2 } from 'react-icons/fi'
+import { FiPlus, FiX, FiTrash2, FiSearch } from 'react-icons/fi'
 
 export default function Orcamentos() {
   const [orcamentos, setOrcamentos] = useState([])
@@ -9,6 +9,7 @@ export default function Orcamentos() {
   const [produtos, setProdutos] = useState([])
   const [servicos, setServicos] = useState([])
   const [clienteId, setClienteId] = useState('')
+  const [clienteBusca, setClienteBusca] = useState('')
   const [itens, setItens] = useState([])
   const [tipoAtual, setTipoAtual] = useState('produto')
   const [itemSelecionado, setItemSelecionado] = useState('')
@@ -31,7 +32,7 @@ export default function Orcamentos() {
     setOrcamentos(orc || [])
     setClientes(cli || [])
     setServicos(serv || [])
-    setProdutos((prod || []).filter(p => p.quantidade > 0)) // Apenas produtos disponíveis
+    setProdutos((prod || []).filter(p => p.quantidade > 0))
   }
 
   function adicionarItemAtual() {
@@ -145,7 +146,11 @@ export default function Orcamentos() {
     const data = new Date(o.created_at)
     const mesOk = mesFiltro ? data.getMonth() + 1 === parseInt(mesFiltro) : true
     const anoOk = anoFiltro ? data.getFullYear() === parseInt(anoFiltro) : true
-    return mesOk && anoOk
+    const cliente = clientes.find(c => c.id === o.cliente_id)
+    const nomeOk = clienteBusca
+      ? cliente?.nome?.toLowerCase().includes(clienteBusca.toLowerCase())
+      : true
+    return mesOk && anoOk && nomeOk
   })
 
   function nomeCliente(id) {
@@ -175,125 +180,147 @@ export default function Orcamentos() {
           className="mb-4 border border-gray-700 rounded-xl shadow-md bg-gray-950 p-4 w-full"
         >
           <h3 className="text-lg font-semibold mb-3 text-yellow-400">Novo Orçamento</h3>
-          <div className="flex flex-col gap-3">
-            {/* Cliente */}
+
+          {/* Selecionar cliente */}
+          <div className="flex flex-col mb-3">
+            <input
+              type="text"
+              placeholder="Buscar cliente..."
+              value={clienteBusca}
+              onChange={e => setClienteBusca(e.target.value)}
+              className="p-2 mb-2 rounded bg-gray-800 border border-gray-600 text-white"
+            />
             <select
               className="w-full p-2 border border-gray-600 rounded bg-gray-800 text-white"
               value={clienteId}
               onChange={e => setClienteId(e.target.value)}
             >
               <option value="">Selecione cliente</option>
-              {clientes.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
+              {clientes
+                .filter(c =>
+                  c.nome.toLowerCase().includes(clienteBusca.toLowerCase())
+                )
+                .map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          {/* Tipo de item */}
+          <div className="flex gap-2 mb-3">
+            <button
+              type="button"
+              className={`flex-1 py-2 rounded ${
+                tipoAtual === 'produto' ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'
+              }`}
+              onClick={() => setTipoAtual('produto')}
+            >
+              Produto
+            </button>
+            <button
+              type="button"
+              className={`flex-1 py-2 rounded ${
+                tipoAtual === 'serviço' ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'
+              }`}
+              onClick={() => setTipoAtual('serviço')}
+            >
+              Serviço
+            </button>
+          </div>
+
+          {/* Escolher item */}
+          <div className="flex flex-col sm:flex-row gap-2 mb-3">
+            <select
+              className="flex-1 p-2 border border-gray-600 rounded bg-gray-800 text-white"
+              value={itemSelecionado}
+              onChange={e => setItemSelecionado(e.target.value)}
+            >
+              <option value="">Escolha {tipoAtual}</option>
+              {(tipoAtual === 'produto' ? produtos : servicos).map(it => (
+                <option key={it.id} value={it.id}>
+                  {it.nome || it.titulo} — R$ {it.valor}{' '}
+                  {tipoAtual === 'produto' ? `(Estoque: ${it.quantidade})` : ''}
                 </option>
               ))}
             </select>
 
-            {/* Tipo de item */}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className={`flex-1 py-2 rounded ${
-                  tipoAtual === 'produto' ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'
-                }`}
-                onClick={() => setTipoAtual('produto')}
-              >
-                Produto
-              </button>
-              <button
-                type="button"
-                className={`flex-1 py-2 rounded ${
-                  tipoAtual === 'serviço' ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'
-                }`}
-                onClick={() => setTipoAtual('serviço')}
-              >
-                Serviço
-              </button>
-            </div>
+            <input
+              type="number"
+              min="1"
+              className="w-full sm:w-20 p-2 border border-gray-600 rounded bg-gray-800 text-white"
+              value={quantidade}
+              onChange={e => setQuantidade(e.target.value)}
+            />
 
-            {/* Escolher item */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <select
-                className="flex-1 p-2 border border-gray-600 rounded bg-gray-800 text-white"
-                value={itemSelecionado}
-                onChange={e => setItemSelecionado(e.target.value)}
-              >
-                <option value="">Escolha {tipoAtual}</option>
-                {(tipoAtual === 'produto' ? produtos : servicos).map(it => (
-                  <option key={it.id} value={it.id}>
-                    {it.nome || it.titulo} — R$ {it.valor} ({tipoAtual === 'produto' ? `Estoque: ${it.quantidade}` : 'Serviço'})
-                  </option>
-                ))}
-              </select>
-
-              <input
-                type="number"
-                min="1"
-                className="w-full sm:w-20 p-2 border border-gray-600 rounded bg-gray-800 text-white"
-                value={quantidade}
-                onChange={e => setQuantidade(e.target.value)}
-              />
-
-              <button
-                type="button"
-                onClick={adicionarItemAtual}
-                className="px-3 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition"
-              >
-                Adicionar
-              </button>
-            </div>
-
-            {/* Lista de itens */}
-            {itens.length > 0 && (
-              <div className="mt-2">
-                {itens.map((it, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between items-center bg-gray-900 border border-gray-700 rounded p-2 mb-1"
-                  >
-                    <div>
-                      <div className="font-medium text-white">{it.nome}</div>
-                      <div className="text-sm text-gray-400">
-                        Qtd: {it.qtd} • R$ {it.valor.toFixed(2)}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="text-red-500 hover:text-red-600"
-                      onClick={() => removerItem(idx)}
-                    >
-                      <FiTrash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Botão salvar */}
             <button
-              type="submit"
-              className="mt-2 w-full py-2 bg-yellow-500 text-black font-semibold rounded hover:bg-yellow-400"
+              type="button"
+              onClick={adicionarItemAtual}
+              className="px-3 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition"
             >
-              Salvar Orçamento
+              Adicionar
             </button>
           </div>
+
+          {/* Lista de itens */}
+          {itens.length > 0 && (
+            <div className="mt-2">
+              {itens.map((it, idx) => (
+                <div
+                  key={idx}
+                  className="flex justify-between items-center bg-gray-900 border border-gray-700 rounded p-2 mb-1"
+                >
+                  <div>
+                    <div className="font-medium text-white">{it.nome}</div>
+                    <div className="text-sm text-gray-400">
+                      Qtd: {it.qtd} • R$ {it.valor.toFixed(2)}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-red-500 hover:text-red-600"
+                    onClick={() => removerItem(idx)}
+                  >
+                    <FiTrash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="mt-3 w-full py-2 bg-yellow-500 text-black font-semibold rounded hover:bg-yellow-400"
+          >
+            Salvar Orçamento
+          </button>
         </form>
       )}
 
       {/* 🔍 Filtros */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+        <div className="flex items-center bg-gray-800 rounded px-2">
+          <FiSearch className="text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar por cliente..."
+            className="flex-1 p-2 bg-transparent text-white text-sm focus:outline-none"
+            value={clienteBusca}
+            onChange={e => setClienteBusca(e.target.value)}
+          />
+        </div>
         <input
           type="number"
           placeholder="Mês"
-          className="w-1/3 p-2 border border-gray-600 rounded bg-gray-800 text-white text-center"
+          className="w-full sm:w-1/3 p-2 border border-gray-600 rounded bg-gray-800 text-white text-center"
           value={mesFiltro}
           onChange={e => setMesFiltro(e.target.value)}
         />
         <input
           type="number"
           placeholder="Ano"
-          className="w-2/3 p-2 border border-gray-600 rounded bg-gray-800 text-white text-center"
+          className="w-full sm:w-1/3 p-2 border border-gray-600 rounded bg-gray-800 text-white text-center"
           value={anoFiltro}
           onChange={e => setAnoFiltro(e.target.value)}
         />
