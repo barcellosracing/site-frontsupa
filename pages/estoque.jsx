@@ -443,7 +443,7 @@ export default function Estoque() {
 
   // ----------------- JSX / UI (mobile-first, tabelas adaptadas) -----------------
   return (
-    <div className="max-w-xl mx-auto p-4 text-white">
+    <div className="max-w-xl mx-auto p-4 text-white px-3">
       {/* Cabeçalho */}
       <div className="flex justify-between items-center mb-4 gap-2">
         <h2 className="text-lg font-semibold text-yellow-500">Controle de Estoque</h2>
@@ -735,64 +735,73 @@ export default function Estoque() {
       {tabela === "produtos" && (
         <>
           {/* Mobile: Cards (default) */}
-          <div className="flex flex-col gap-3 md:hidden">
-            {produtos.map((p) => (
-              <article key={p.id} className="bg-gray-900 border border-gray-700 rounded-xl p-3 shadow-sm flex gap-3 items-start">
-                <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
-                  {p.foto_url ? (
-                    <img
-                      src={p.foto_url}
-                      alt={p.nome}
-                      className="w-full h-full object-cover cursor-pointer"
-                      onClick={() => setImagemAmpliada(p.foto_url)}
-                    />
-                  ) : (
-                    <div className="text-gray-500">—</div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start">
-                    <h3 className="text-base font-medium truncate">{p.nome}</h3>
-                    <div className="text-sm">R$ {Number(p.preco_custo).toFixed(2)}</div>
-                  </div>
-                  <p className="text-sm text-gray-300 mt-1 line-clamp-2">{p.descricao}</p>
-
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm text-gray-400">Qtd</div>
-                      <div className="text-sm font-medium">{p.quantidade}</div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="bg-gray-800 border border-gray-700 p-2 rounded-md w-20 text-white text-sm"
-                        defaultValue={p.margem_lucro ?? 0}
-                        onBlur={(e) => {
-                          atualizarMargem(p.id, e.target.value);
-                        }}
-                        title="Margem de lucro (%)"
+          <div className="md:hidden px-2">
+            <div className="flex flex-col gap-3">
+              {produtos.map((p) => (
+                <article
+                  key={p.id}
+                  className="w-full max-w-full box-border overflow-hidden bg-gray-900 border border-gray-700 rounded-xl p-3 shadow-sm flex gap-3 items-start"
+                >
+                  <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
+                    {p.foto_url ? (
+                      <img
+                        src={p.foto_url}
+                        alt={p.nome}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => setImagemAmpliada(p.foto_url)}
                       />
-                      <button
-                        title="Editar"
-                        onClick={() => abrirEdicaoProduto(p)}
-                        className="p-2 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
-                      >
-                        <FiEdit />
-                      </button>
-                      <button
-                        title="Excluir"
-                        onClick={() => excluirProduto(p.id)}
-                        className="p-2 bg-red-700 text-white rounded-md hover:bg-red-600"
-                      >
-                        <FiTrash2 />
-                      </button>
+                    ) : (
+                      <div className="text-gray-500">—</div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <h3 className="text-base font-medium truncate">{p.nome}</h3>
+                      <div className="text-sm flex-shrink-0">R$ {Number(p.preco_custo).toFixed(2)}</div>
+                    </div>
+
+                    <p className="text-sm text-gray-300 mt-1 line-clamp-2 break-words">{p.descricao}</p>
+
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm text-gray-400">Qtd</div>
+                        <div className="text-sm font-medium">{p.quantidade}</div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="bg-gray-800 border border-gray-700 p-2 rounded-md w-20 text-white text-sm"
+                          defaultValue={p.margem_lucro ?? 0}
+                          onBlur={(e) => {
+                            atualizarMargem(p.id, e.target.value);
+                          }}
+                          title="Margem de lucro (%)"
+                        />
+                        <button
+                          title="Editar"
+                          onClick={() => abrirEdicaoProduto(p)}
+                          className="p-2 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
+                          aria-label={`Editar ${p.nome}`}
+                        >
+                          <FiEdit />
+                        </button>
+                        <button
+                          title="Excluir"
+                          onClick={() => excluirProduto(p.id)}
+                          className="p-2 bg-red-700 text-white rounded-md hover:bg-red-600"
+                          aria-label={`Excluir ${p.nome}`}
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              ))}
+            </div>
           </div>
 
           {/* Desktop / Tablet: Table (md+) */}
@@ -870,39 +879,47 @@ export default function Estoque() {
       {tabela === "historico" && (
         <>
           {/* Mobile: Cards (default) */}
-          <div className="flex flex-col gap-3 md:hidden">
-            {historico.map((h) => (
-              <article key={h.id} className="bg-gray-900 border border-gray-700 rounded-xl p-3 shadow-sm">
-                <div className="flex justify-between items-start gap-3">
-                  <div className="min-w-0">
-                    <h3 className="text-base font-medium truncate">{h.nome}</h3>
-                    <p className="text-sm text-gray-300 mt-1 line-clamp-2">{h.descricao}</p>
+          <div className="md:hidden px-2">
+            <div className="flex flex-col gap-3">
+              {historico.map((h) => (
+                <article key={h.id} className="w-full max-w-full box-border overflow-hidden bg-gray-900 border border-gray-700 rounded-xl p-3 shadow-sm">
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-base font-medium truncate">{h.nome}</h3>
+                      <p className="text-sm text-gray-300 mt-1 line-clamp-2 break-words">{h.descricao}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <div className="text-sm">R$ {Number(h.preco_custo).toFixed(2)}</div>
+                      <div className="text-sm text-gray-400">Qtd: {h.quantidade}</div>
+                      <div className="text-xs text-gray-500 mt-1">{new Date(h.data_entrada).toLocaleString("pt-BR")}</div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm">R$ {Number(h.preco_custo).toFixed(2)}</div>
-                    <div className="text-sm text-gray-400">Qtd: {h.quantidade}</div>
-                    <div className="text-xs text-gray-500 mt-1">{new Date(h.data_entrada).toLocaleString("pt-BR")}</div>
-                  </div>
-                </div>
 
-                <div className="mt-3 flex gap-2">
-                  <button
-                    title="Editar registro"
-                    onClick={() => abrirEdicaoHistorico(h)}
-                    className="flex-1 p-3 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
-                  >
-                    <FiEdit /> <span className="ml-2 hidden sm:inline">Editar</span>
-                  </button>
-                  <button
-                    title="Excluir registro"
-                    onClick={() => excluirHistorico(h)}
-                    className="flex-1 p-3 bg-red-700 text-white rounded-md hover:bg-red-600"
-                  >
-                    <FiTrash2 /> <span className="ml-2 hidden sm:inline">Excluir</span>
-                  </button>
-                </div>
-              </article>
-            ))}
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      title="Editar registro"
+                      onClick={() => abrirEdicaoHistorico(h)}
+                      className="flex-1 p-2 text-xs sm:p-3 sm:text-sm bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <FiEdit />
+                        <span className="hidden sm:inline">Editar</span>
+                      </div>
+                    </button>
+                    <button
+                      title="Excluir registro"
+                      onClick={() => excluirHistorico(h)}
+                      className="flex-1 p-2 text-xs sm:p-3 sm:text-sm bg-red-700 text-white rounded-md hover:bg-red-600"
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <FiTrash2 />
+                        <span className="hidden sm:inline">Excluir</span>
+                      </div>
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
 
           {/* Desktop / Tablet: Table (md+) */}
