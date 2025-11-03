@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { FiPlus, FiUpload, FiClock, FiBox } from "react-icons/fi";
+import { FiPlus, FiUpload, FiClock, FiBox, FiX } from "react-icons/fi";
 
 export default function Estoque() {
   const [form, setForm] = useState({
@@ -16,8 +16,9 @@ export default function Estoque() {
   const [loading, setLoading] = useState(false);
   const [produtos, setProdutos] = useState([]);
   const [historico, setHistorico] = useState([]);
+  const [imagemAmpliada, setImagemAmpliada] = useState(null);
 
-  // 🔹 Carregar dados ao iniciar
+  // 🔹 Carregar dados
   useEffect(() => {
     carregarProdutos();
     carregarHistorico();
@@ -28,8 +29,7 @@ export default function Estoque() {
       .from("estoque_produtos")
       .select("*")
       .order("created_at", { ascending: false });
-    if (error) console.error(error);
-    else setProdutos(data);
+    if (!error) setProdutos(data || []);
   }
 
   async function carregarHistorico() {
@@ -37,8 +37,7 @@ export default function Estoque() {
       .from("estoque_historico")
       .select("*")
       .order("data_entrada", { ascending: false });
-    if (error) console.error(error);
-    else setHistorico(data);
+    if (!error) setHistorico(data || []);
   }
 
   // 🔹 Upload de imagem
@@ -61,19 +60,17 @@ export default function Estoque() {
     }
   }
 
-  // 🔹 Processar cadastro de produto
+  // 🔹 Cadastro
   async function processarProduto(e) {
     e.preventDefault();
     setLoading(true);
 
     const fotoUrl = form.foto ? await uploadImagem(form.foto) : null;
-
-    // Verifica se o produto já existe
     const produtoExistente = produtos.find((p) => p.nome === form.nome);
 
     if (produtoExistente) {
-      // Atualiza o estoque e o preço se necessário
-      const novaQuantidade = produtoExistente.quantidade + parseInt(form.quantidade);
+      const novaQuantidade =
+        parseInt(produtoExistente.quantidade) + parseInt(form.quantidade);
       const novoPreco = Math.max(
         parseFloat(produtoExistente.preco_custo),
         parseFloat(form.preco_custo)
@@ -97,7 +94,6 @@ export default function Estoque() {
         },
       ]);
     } else {
-      // Novo produto
       const { data, error } = await supabase
         .from("estoque_produtos")
         .insert([
@@ -112,10 +108,7 @@ export default function Estoque() {
         .select()
         .single();
 
-      if (error) {
-        alert("Erro ao cadastrar produto");
-        console.error(error);
-      } else {
+      if (!error && data) {
         await supabase.from("estoque_historico").insert([
           {
             produto_id: data.id,
@@ -186,23 +179,29 @@ export default function Estoque() {
           className="bg-gray-900 border border-yellow-600 rounded-2xl p-5 mb-6 shadow-lg"
         >
           <div className="grid gap-3">
+            <label className="text-gray-300 text-sm">Produto</label>
             <select
               value={form.nome}
               onChange={(e) => {
-                const nomeSelecionado = e.target.value;
-                if (nomeSelecionado === "novo") {
+                const valor = e.target.value;
+                if (valor === "novo") {
                   setForm({
-                    ...form,
                     nome: "",
                     descricao: "",
+                    preco_custo: "",
+                    quantidade: "",
+                    foto: null,
+                    preview: null,
                   });
-                } else {
-                  const produto = produtos.find((p) => p.nome === nomeSelecionado);
+                } else if (valor) {
+                  const produto = produtos.find((p) => p.nome === valor);
                   setForm({
                     ...form,
                     nome: produto.nome,
                     descricao: produto.descricao,
                   });
+                } else {
+                  setForm({ ...form, nome: "", descricao: "" });
                 }
               }}
               className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
@@ -216,15 +215,30 @@ export default function Estoque() {
               ))}
             </select>
 
-            {form.nome && !produtos.some((p) => p.nome === form.nome) && (
-              <textarea
-                placeholder="Descrição"
-                value={form.descricao}
-                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
-              />
+            {/* Campos para novo produto */}
+            {form.nome === "" && (
+              <>
+                <input
+                  type="text"
+                  placeholder="Nome do novo produto"
+                  value={form.nome}
+                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                  className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
+                  required
+                />
+                <textarea
+                  placeholder="Descrição"
+                  value={form.descricao}
+                  onChange={(e) =>
+                    setForm({ ...form, descricao: e.target.value })
+                  }
+                  className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
+                  required
+                />
+              </>
             )}
 
+            {/* Campos comuns */}
             <input
               type="number"
               placeholder="Preço de Custo"
@@ -285,39 +299,58 @@ export default function Estoque() {
         </form>
       )}
 
+      {/* Modal de imagem ampliada */}
+      {imagemAmpliada && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
+          onClick={() => setImagemAmpliada(null)}
+        >
+          <img
+            src={imagemAmpliada}
+            alt="Imagem ampliada"
+            className="max-w-[90%] max-h-[90%] rounded-lg border border-yellow-500"
+          />
+          <button
+            onClick={() => setImagemAmpliada(null)}
+            className="absolute top-4 right-4 text-white text-3xl"
+          >
+            <FiX />
+          </button>
+        </div>
+      )}
+
       {/* Tabela Produtos */}
       {tabela === "produtos" && (
         <div className="overflow-x-auto">
           <table className="w-full border border-gray-700 text-sm sm:text-base">
             <thead className="bg-gray-800 text-yellow-400">
               <tr>
+                <th className="p-2 text-left">Imagem</th>
                 <th className="p-2 text-left">Nome</th>
+                <th className="p-2 text-left">Descrição</th>
                 <th className="p-2 text-left">Preço Custo</th>
                 <th className="p-2 text-left">Quantidade</th>
-                <th className="p-2 text-left">Margem Lucro (%)</th>
               </tr>
             </thead>
             <tbody>
               {produtos.map((p) => (
                 <tr key={p.id} className="border-t border-gray-700">
+                  <td className="p-2">
+                    {p.foto_url ? (
+                      <img
+                        src={p.foto_url}
+                        alt={p.nome}
+                        onClick={() => setImagemAmpliada(p.foto_url)}
+                        className="w-14 h-14 object-cover rounded-lg cursor-pointer hover:scale-105 transition-transform"
+                      />
+                    ) : (
+                      <span className="text-gray-500">Sem foto</span>
+                    )}
+                  </td>
                   <td className="p-2">{p.nome}</td>
+                  <td className="p-2 max-w-[200px] truncate">{p.descricao}</td>
                   <td className="p-2">R$ {p.preco_custo}</td>
                   <td className="p-2">{p.quantidade}</td>
-                  <td className="p-2">
-                    <input
-                      type="number"
-                      value={p.margem_lucro || ""}
-                      onChange={async (e) => {
-                        const novaMargem = parseFloat(e.target.value) || 0;
-                        await supabase
-                          .from("estoque_produtos")
-                          .update({ margem_lucro: novaMargem })
-                          .eq("id", p.id);
-                        carregarProdutos();
-                      }}
-                      className="bg-gray-800 border border-gray-700 p-1 rounded-md w-20 text-white text-sm"
-                    />
-                  </td>
                 </tr>
               ))}
             </tbody>
