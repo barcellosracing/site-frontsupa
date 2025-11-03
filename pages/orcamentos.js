@@ -450,8 +450,7 @@ export default function Orcamentos() {
                     <div
                       key={c.id}
                       className="p-2 hover:bg-gray-800 cursor-pointer text-white"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
+                       onClick={(e) => {
                         setClienteId(c.id);
                         setBuscaCliente(c.nome);
                         setSugestoesCliente([]);
@@ -513,8 +512,7 @@ export default function Orcamentos() {
                     <div
                       key={it.id}
                       className="p-2 hover:bg-gray-800 cursor-pointer text-white"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
+                       onClick={(e) => {
                         setItemSelecionado(it.id);
                         setBuscaItem(tipoAtual === "produto" ? it.nome : it.titulo);
                         setSugestoesItens([]);
