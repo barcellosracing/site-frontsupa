@@ -454,7 +454,7 @@ export default function Estoque() {
             className="flex items-center gap-2 bg-yellow-500 text-black px-3 py-2 rounded-lg shadow-sm text-sm"
             title="Alternar Produtos / Histórico"
           >
-            <FiEye /> <span className="hidden sm:inline">{tabela === "produtos" ? "Ver Histórico" : "Ver Produtos"}</span>
+            <FiEye /> <span className="hidden md:inline">{tabela === "produtos" ? "Ver Histórico" : "Ver Produtos"}</span>
           </button>
 
           <button
@@ -471,8 +471,9 @@ export default function Estoque() {
                 preview: null,
               });
             }}
-            className="p-2 bg-yellow-500 text-black rounded-full hover:bg-yellow-400 shadow-lg"
+            className="p-3 bg-yellow-500 text-black rounded-full hover:bg-yellow-400 shadow-lg flex items-center justify-center"
             title="Adicionar entrada"
+            aria-label="Adicionar entrada"
           >
             <FiPlus className="w-5 h-5" />
           </button>
@@ -518,7 +519,7 @@ export default function Estoque() {
                   setForm((f) => ({ ...f, nome: "", descricao: "" }));
                 }
               }}
-              className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
+              className="bg-gray-800 border border-gray-700 p-3 rounded-md text-white"
               required
             >
               <option value="">-- selecione --</option>
@@ -538,14 +539,14 @@ export default function Estoque() {
                   placeholder="Nome do novo produto"
                   value={form.nome}
                   onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                  className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
+                  className="bg-gray-800 border border-gray-700 p-3 rounded-md text-white"
                   required
                 />
                 <textarea
                   placeholder="Descrição"
                   value={form.descricao}
                   onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                  className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
+                  className="bg-gray-800 border border-gray-700 p-3 rounded-md text-white"
                   required
                 />
               </>
@@ -730,122 +731,225 @@ export default function Estoque() {
         </div>
       )}
 
-      {/* Tabela Produtos (mobile: scroll horizontal) */}
+      {/* PRODUTOS - MOBILE CARDS */}
       {tabela === "produtos" && (
-        <div className="overflow-x-auto bg-gray-900 border border-gray-700 rounded-lg p-2">
-          <table className="w-full text-sm">
-            <thead className="text-yellow-400">
-              <tr className="text-left">
-                <th className="p-2">Img</th>
-                <th className="p-2">Nome</th>
-                <th className="p-2">Descrição</th>
-                <th className="p-2">Preço</th>
-                <th className="p-2">Qtd</th>
-                <th className="p-2">Margem</th>
-                <th className="p-2">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {produtos.map((p) => (
-                <tr key={p.id} className="border-t border-gray-700">
-                  <td className="p-2 align-middle">
-                    {p.foto_url ? (
-                      <img
-                        src={p.foto_url}
-                        alt={p.nome}
-                        className="w-16 h-16 object-cover rounded-lg cursor-pointer"
-                        onClick={() => setImagemAmpliada(p.foto_url)}
-                      />
-                    ) : (
-                      <div className="w-16 h-16 flex items-center justify-center text-gray-500">—</div>
-                    )}
-                  </td>
-                  <td className="p-2 align-middle text-base font-medium">{p.nome}</td>
-                  <td className="p-2 align-middle max-w-xs truncate text-sm">{p.descricao}</td>
-                  <td className="p-2 align-middle text-base">R$ {Number(p.preco_custo).toFixed(2)}</td>
-                  <td className="p-2 align-middle">{p.quantidade}</td>
-                  <td className="p-2 align-middle">
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="bg-gray-800 border border-gray-700 p-2 rounded-md w-20 text-white text-sm"
-                      defaultValue={p.margem_lucro ?? 0}
-                      onBlur={(e) => {
-                        // salva ao perder foco
-                        atualizarMargem(p.id, e.target.value);
-                      }}
+        <>
+          {/* Mobile: Cards (default) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {produtos.map((p) => (
+              <article key={p.id} className="bg-gray-900 border border-gray-700 rounded-xl p-3 shadow-sm flex gap-3 items-start">
+                <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
+                  {p.foto_url ? (
+                    <img
+                      src={p.foto_url}
+                      alt={p.nome}
+                      className="w-full h-full object-cover cursor-pointer"
+                      onClick={() => setImagemAmpliada(p.foto_url)}
                     />
-                  </td>
-                  <td className="p-2 align-middle">
-                    <div className="flex gap-2">
+                  ) : (
+                    <div className="text-gray-500">—</div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-base font-medium truncate">{p.nome}</h3>
+                    <div className="text-sm">R$ {Number(p.preco_custo).toFixed(2)}</div>
+                  </div>
+                  <p className="text-sm text-gray-300 mt-1 line-clamp-2">{p.descricao}</p>
+
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm text-gray-400">Qtd</div>
+                      <div className="text-sm font-medium">{p.quantidade}</div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="bg-gray-800 border border-gray-700 p-2 rounded-md w-20 text-white text-sm"
+                        defaultValue={p.margem_lucro ?? 0}
+                        onBlur={(e) => {
+                          atualizarMargem(p.id, e.target.value);
+                        }}
+                        title="Margem de lucro (%)"
+                      />
                       <button
                         title="Editar"
                         onClick={() => abrirEdicaoProduto(p)}
-                        className="p-3 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
+                        className="p-2 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
                       >
                         <FiEdit />
                       </button>
                       <button
                         title="Excluir"
                         onClick={() => excluirProduto(p.id)}
-                        className="p-3 bg-red-700 text-white rounded-md hover:bg-red-600"
+                        className="p-2 bg-red-700 text-white rounded-md hover:bg-red-600"
                       >
                         <FiTrash2 />
                       </button>
                     </div>
-                  </td>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {/* Desktop / Tablet: Table (md+) */}
+          <div className="hidden md:block overflow-x-auto bg-gray-900 border border-gray-700 rounded-lg p-2">
+            <table className="w-full text-sm">
+              <thead className="text-yellow-400">
+                <tr className="text-left">
+                  <th className="p-2">Img</th>
+                  <th className="p-2">Nome</th>
+                  <th className="p-2">Descrição</th>
+                  <th className="p-2">Preço</th>
+                  <th className="p-2">Qtd</th>
+                  <th className="p-2">Margem</th>
+                  <th className="p-2">Ações</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {produtos.map((p) => (
+                  <tr key={p.id} className="border-t border-gray-700">
+                    <td className="p-2 align-middle">
+                      {p.foto_url ? (
+                        <img
+                          src={p.foto_url}
+                          alt={p.nome}
+                          className="w-16 h-16 object-cover rounded-lg cursor-pointer"
+                          onClick={() => setImagemAmpliada(p.foto_url)}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 flex items-center justify-center text-gray-500">—</div>
+                      )}
+                    </td>
+                    <td className="p-2 align-middle text-base font-medium">{p.nome}</td>
+                    <td className="p-2 align-middle max-w-xs truncate text-sm">{p.descricao}</td>
+                    <td className="p-2 align-middle text-base">R$ {Number(p.preco_custo).toFixed(2)}</td>
+                    <td className="p-2 align-middle">{p.quantidade}</td>
+                    <td className="p-2 align-middle">
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="bg-gray-800 border border-gray-700 p-2 rounded-md w-20 text-white text-sm"
+                        defaultValue={p.margem_lucro ?? 0}
+                        onBlur={(e) => {
+                          // salva ao perder foco
+                          atualizarMargem(p.id, e.target.value);
+                        }}
+                      />
+                    </td>
+                    <td className="p-2 align-middle">
+                      <div className="flex gap-2">
+                        <button
+                          title="Editar"
+                          onClick={() => abrirEdicaoProduto(p)}
+                          className="p-3 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
+                        >
+                          <FiEdit />
+                        </button>
+                        <button
+                          title="Excluir"
+                          onClick={() => excluirProduto(p.id)}
+                          className="p-3 bg-red-700 text-white rounded-md hover:bg-red-600"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
-      {/* Tabela Histórico (mobile: scroll horizontal) */}
+      {/* HISTORICO - MOBILE CARDS */}
       {tabela === "historico" && (
-        <div className="overflow-x-auto bg-gray-900 border border-gray-700 rounded-lg p-2">
-          <table className="w-full text-sm">
-            <thead className="text-yellow-400">
-              <tr className="text-left">
-                <th className="p-2">Produto</th>
-                <th className="p-2">Descrição</th>
-                <th className="p-2">Preço</th>
-                <th className="p-2">Qtd</th>
-                <th className="p-2">Data</th>
-                <th className="p-2">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {historico.map((h) => (
-                <tr key={h.id} className="border-t border-gray-700">
-                  <td className="p-2 text-base">{h.nome}</td>
-                  <td className="p-2 max-w-xs truncate text-sm">{h.descricao}</td>
-                  <td className="p-2">R$ {Number(h.preco_custo).toFixed(2)}</td>
-                  <td className="p-2">{h.quantidade}</td>
-                  <td className="p-2 text-sm">{new Date(h.data_entrada).toLocaleString("pt-BR")}</td>
-                  <td className="p-2">
-                    <div className="flex gap-2">
-                      <button
-                        title="Editar registro"
-                        onClick={() => abrirEdicaoHistorico(h)}
-                        className="p-3 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
-                      >
-                        <FiEdit />
-                      </button>
-                      <button
-                        title="Excluir registro"
-                        onClick={() => excluirHistorico(h)}
-                        className="p-3 bg-red-700 text-white rounded-md hover:bg-red-600"
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </div>
-                  </td>
+        <>
+          {/* Mobile: Cards (default) */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {historico.map((h) => (
+              <article key={h.id} className="bg-gray-900 border border-gray-700 rounded-xl p-3 shadow-sm">
+                <div className="flex justify-between items-start gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-medium truncate">{h.nome}</h3>
+                    <p className="text-sm text-gray-300 mt-1 line-clamp-2">{h.descricao}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm">R$ {Number(h.preco_custo).toFixed(2)}</div>
+                    <div className="text-sm text-gray-400">Qtd: {h.quantidade}</div>
+                    <div className="text-xs text-gray-500 mt-1">{new Date(h.data_entrada).toLocaleString("pt-BR")}</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                  <button
+                    title="Editar registro"
+                    onClick={() => abrirEdicaoHistorico(h)}
+                    className="flex-1 p-3 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
+                  >
+                    <FiEdit /> <span className="ml-2 hidden sm:inline">Editar</span>
+                  </button>
+                  <button
+                    title="Excluir registro"
+                    onClick={() => excluirHistorico(h)}
+                    className="flex-1 p-3 bg-red-700 text-white rounded-md hover:bg-red-600"
+                  >
+                    <FiTrash2 /> <span className="ml-2 hidden sm:inline">Excluir</span>
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {/* Desktop / Tablet: Table (md+) */}
+          <div className="hidden md:block overflow-x-auto bg-gray-900 border border-gray-700 rounded-lg p-2">
+            <table className="w-full text-sm">
+              <thead className="text-yellow-400">
+                <tr className="text-left">
+                  <th className="p-2">Produto</th>
+                  <th className="p-2">Descrição</th>
+                  <th className="p-2">Preço</th>
+                  <th className="p-2">Qtd</th>
+                  <th className="p-2">Data</th>
+                  <th className="p-2">Ações</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {historico.map((h) => (
+                  <tr key={h.id} className="border-t border-gray-700">
+                    <td className="p-2 text-base">{h.nome}</td>
+                    <td className="p-2 max-w-xs truncate text-sm">{h.descricao}</td>
+                    <td className="p-2">R$ {Number(h.preco_custo).toFixed(2)}</td>
+                    <td className="p-2">{h.quantidade}</td>
+                    <td className="p-2 text-sm">{new Date(h.data_entrada).toLocaleString("pt-BR")}</td>
+                    <td className="p-2">
+                      <div className="flex gap-2">
+                        <button
+                          title="Editar registro"
+                          onClick={() => abrirEdicaoHistorico(h)}
+                          className="p-3 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
+                        >
+                          <FiEdit />
+                        </button>
+                        <button
+                          title="Excluir registro"
+                          onClick={() => excluirHistorico(h)}
+                          className="p-3 bg-red-700 text-white rounded-md hover:bg-red-600"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
