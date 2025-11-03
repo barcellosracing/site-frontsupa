@@ -8,14 +8,13 @@ export default function Orcamentos() {
   const [clientes, setClientes] = useState([])
   const [produtos, setProdutos] = useState([])
   const [servicos, setServicos] = useState([])
-
   const [clienteId, setClienteId] = useState('')
   const [itens, setItens] = useState([])
   const [tipoAtual, setTipoAtual] = useState('produto')
   const [itemSelecionado, setItemSelecionado] = useState('')
   const [quantidade, setQuantidade] = useState(1)
-  const [mes, setMes] = useState(new Date().toISOString().slice(0, 7))
-  const [mesesDisponiveis, setMesesDisponiveis] = useState([new Date().toISOString().slice(0, 7)])
+  const [mesFiltro, setMesFiltro] = useState('')
+  const [anoFiltro, setAnoFiltro] = useState('')
   const [mostrarForm, setMostrarForm] = useState(false)
 
   useEffect(() => {
@@ -26,23 +25,13 @@ export default function Orcamentos() {
     const [{ data: orc }, { data: cli }, { data: prod }, { data: serv }] = await Promise.all([
       supabase.from('orcamentos').select('*').order('created_at', { ascending: false }),
       supabase.from('clientes').select('*'),
-      supabase.from('produtos').select('*'),
+      supabase.from('estoque').select('*'),
       supabase.from('servicos').select('*')
     ])
     setOrcamentos(orc || [])
     setClientes(cli || [])
-    setProdutos(prod || [])
     setServicos(serv || [])
-
-    // Atualiza meses dinamicamente conforme há novos orçamentos
-    const mesesSet = new Set(
-      (orc || []).map(o => (o.created_at ? o.created_at.slice(0, 7) : ''))
-    )
-    const listaMeses = Array.from(mesesSet).sort().reverse()
-    if (listaMeses.length === 0) {
-      listaMeses.push(new Date().toISOString().slice(0, 7))
-    }
-    setMesesDisponiveis(listaMeses)
+    setProdutos((prod || []).filter(p => p.quantidade > 0)) // Apenas produtos disponíveis
   }
 
   function adicionarItemAtual() {
@@ -50,21 +39,31 @@ export default function Orcamentos() {
       alert('Escolha um item.')
       return
     }
+
     const origem =
       tipoAtual === 'produto'
         ? produtos.find(p => p.id === itemSelecionado)
         : servicos.find(s => s.id === itemSelecionado)
+
     if (!origem) {
       alert('Item inválido.')
+      return
+    }
+
+    const qtdSolicitada = parseInt(quantidade || 1, 10)
+
+    // 🚫 Verifica estoque
+    if (tipoAtual === 'produto' && qtdSolicitada > origem.quantidade) {
+      alert(`Quantidade indisponível. Estoque atual: ${origem.quantidade}`)
       return
     }
 
     const novoItem = {
       tipo: tipoAtual,
       id: itemSelecionado,
-      nome: origem.titulo,
-      valor: parseFloat(origem.valor || 0),
-      qtd: parseInt(quantidade || 1, 10)
+      nome: origem.nome || origem.titulo,
+      valor: parseFloat(origem.valor || origem.preco_custo || 0),
+      qtd: qtdSolicitada
     }
 
     setItens(prev => [...prev, novoItem])
@@ -143,10 +142,10 @@ export default function Orcamentos() {
   }
 
   const filtrados = orcamentos.filter(o => {
-    const clienteOk = clienteId ? o.cliente_id === clienteId : true
-    const mesOrc = o.created_at ? o.created_at.slice(0, 7) : ''
-    const mesOk = mes ? mesOrc === mes : true
-    return clienteOk && mesOk
+    const data = new Date(o.created_at)
+    const mesOk = mesFiltro ? data.getMonth() + 1 === parseInt(mesFiltro) : true
+    const anoOk = anoFiltro ? data.getFullYear() === parseInt(anoFiltro) : true
+    return mesOk && anoOk
   })
 
   function nomeCliente(id) {
@@ -155,189 +154,173 @@ export default function Orcamentos() {
   }
 
   return (
-    <div className="relative max-w-full overflow-hidden">
+    <div className="relative max-w-full overflow-hidden px-3 py-2">
       {/* Cabeçalho */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold text-white">Orçamentos</h2>
+      <div className="flex justify-between items-center mb-3">
+        <h2 className="text-xl font-semibold text-white">Orçamentos</h2>
         {isAdmin() && (
           <button
             onClick={() => setMostrarForm(s => !s)}
             className="p-2 text-yellow-400 hover:text-yellow-500 transition"
           >
-            {mostrarForm ? <FiX size={24} /> : <FiPlus size={24} />}
+            {mostrarForm ? <FiX size={22} /> : <FiPlus size={22} />}
           </button>
         )}
       </div>
 
-      {/* Formulário responsivo */}
+      {/* Formulário */}
       {mostrarForm && (
         <form
           onSubmit={salvarOrcamento}
-          className="mb-6 border border-gray-700 rounded-xl shadow-md bg-gray-950 p-4 max-w-full w-full sm:w-[95%] mx-auto"
+          className="mb-4 border border-gray-700 rounded-xl shadow-md bg-gray-950 p-4 w-full"
         >
-          <h3 className="text-lg font-semibold mb-3 text-white">Novo Orçamento</h3>
-          <div className="grid gap-3">
-            <div>
-              <label className="block text-sm mb-1 text-gray-300">Cliente</label>
-              <select
-                className="w-full p-2 border border-gray-600 rounded bg-gray-800 text-white"
-                value={clienteId}
-                onChange={e => setClienteId(e.target.value)}
+          <h3 className="text-lg font-semibold mb-3 text-yellow-400">Novo Orçamento</h3>
+          <div className="flex flex-col gap-3">
+            {/* Cliente */}
+            <select
+              className="w-full p-2 border border-gray-600 rounded bg-gray-800 text-white"
+              value={clienteId}
+              onChange={e => setClienteId(e.target.value)}
+            >
+              <option value="">Selecione cliente</option>
+              {clientes.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+
+            {/* Tipo de item */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={`flex-1 py-2 rounded ${
+                  tipoAtual === 'produto' ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'
+                }`}
+                onClick={() => setTipoAtual('produto')}
               >
-                <option value="">Selecione cliente</option>
-                {clientes.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
+                Produto
+              </button>
+              <button
+                type="button"
+                className={`flex-1 py-2 rounded ${
+                  tipoAtual === 'serviço' ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'
+                }`}
+                onClick={() => setTipoAtual('serviço')}
+              >
+                Serviço
+              </button>
+            </div>
+
+            {/* Escolher item */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <select
+                className="flex-1 p-2 border border-gray-600 rounded bg-gray-800 text-white"
+                value={itemSelecionado}
+                onChange={e => setItemSelecionado(e.target.value)}
+              >
+                <option value="">Escolha {tipoAtual}</option>
+                {(tipoAtual === 'produto' ? produtos : servicos).map(it => (
+                  <option key={it.id} value={it.id}>
+                    {it.nome || it.titulo} — R$ {it.valor} ({tipoAtual === 'produto' ? `Estoque: ${it.quantidade}` : 'Serviço'})
                   </option>
                 ))}
               </select>
+
+              <input
+                type="number"
+                min="1"
+                className="w-full sm:w-20 p-2 border border-gray-600 rounded bg-gray-800 text-white"
+                value={quantidade}
+                onChange={e => setQuantidade(e.target.value)}
+              />
+
+              <button
+                type="button"
+                onClick={adicionarItemAtual}
+                className="px-3 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition"
+              >
+                Adicionar
+              </button>
             </div>
 
-            <div>
-              <label className="block text-sm mb-1 text-gray-300">Adicionar item</label>
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  type="button"
-                  className={`px-3 py-1 rounded border border-gray-600 ${
-                    tipoAtual === 'produto' ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'
-                  }`}
-                  onClick={() => setTipoAtual('produto')}
-                >
-                  Produto
-                </button>
-                <button
-                  type="button"
-                  className={`px-3 py-1 rounded border border-gray-600 ${
-                    tipoAtual === 'serviço' ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'
-                  }`}
-                  onClick={() => setTipoAtual('serviço')}
-                >
-                  Serviço
-                </button>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2 mt-2">
-                <select
-                  className="flex-1 p-2 border border-gray-600 rounded bg-gray-800 text-white"
-                  value={itemSelecionado}
-                  onChange={e => setItemSelecionado(e.target.value)}
-                >
-                  <option value="">Escolha {tipoAtual}</option>
-                  {(tipoAtual === 'produto' ? produtos : servicos).map(it => (
-                    <option key={it.id} value={it.id}>
-                      {it.titulo} — R$ {it.valor}
-                    </option>
-                  ))}
-                </select>
-
-                <input
-                  type="number"
-                  min="1"
-                  className="w-full sm:w-24 p-2 border border-gray-600 rounded bg-gray-800 text-white"
-                  value={quantidade}
-                  onChange={e => setQuantidade(e.target.value)}
-                />
-
-                <button
-                  type="button"
-                  className="px-4 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition w-full sm:w-auto"
-                  onClick={adicionarItemAtual}
-                >
-                  Adicionar
-                </button>
-              </div>
-            </div>
-
-            {/* Itens */}
+            {/* Lista de itens */}
             {itens.length > 0 && (
               <div className="mt-2">
-                <div className="text-sm font-medium mb-1 text-gray-300">Itens adicionados</div>
-                <div className="grid gap-2">
-                  {itens.map((it, idx) => (
-                    <div
-                      key={idx}
-                      className="flex justify-between items-center p-2 bg-gray-900 border border-gray-700 rounded"
-                    >
-                      <div>
-                        <div className="font-medium text-white">
-                          {it.nome}{' '}
-                          <span className="text-gray-400 text-sm">({it.tipo})</span>
-                        </div>
-                        <div className="text-sm text-gray-400">
-                          Qtd: {it.qtd} • R$ {it.valor}
-                        </div>
+                {itens.map((it, idx) => (
+                  <div
+                    key={idx}
+                    className="flex justify-between items-center bg-gray-900 border border-gray-700 rounded p-2 mb-1"
+                  >
+                    <div>
+                      <div className="font-medium text-white">{it.nome}</div>
+                      <div className="text-sm text-gray-400">
+                        Qtd: {it.qtd} • R$ {it.valor.toFixed(2)}
                       </div>
-                      <button
-                        type="button"
-                        className="text-red-500 hover:text-red-600"
-                        onClick={() => removerItem(idx)}
-                      >
-                        <FiTrash2 size={16} />
-                      </button>
                     </div>
-                  ))}
-                </div>
-                <div className="mt-3 text-right text-sm text-gray-400">
-                  Total parcial: R$ {itens.reduce((s, it) => s + it.valor * it.qtd, 0).toFixed(2)}
-                </div>
+                    <button
+                      type="button"
+                      className="text-red-500 hover:text-red-600"
+                      onClick={() => removerItem(idx)}
+                    >
+                      <FiTrash2 size={16} />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
 
-            <div className="mt-3 flex justify-end">
-              <button className="px-4 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition" type="submit">
-                Salvar Orçamento
-              </button>
-            </div>
+            {/* Botão salvar */}
+            <button
+              type="submit"
+              className="mt-2 w-full py-2 bg-yellow-500 text-black font-semibold rounded hover:bg-yellow-400"
+            >
+              Salvar Orçamento
+            </button>
           </div>
         </form>
       )}
 
-      {/* Filtros */}
-      <div className="mb-4 flex flex-wrap gap-2 items-center">
-        <select
-          value={clienteId}
-          onChange={e => setClienteId(e.target.value)}
-          className="p-2 border border-gray-600 rounded bg-gray-800 text-white"
-        >
-          <option value="">Todos os clientes</option>
-          {clientes.map(c => (
-            <option key={c.id} value={c.id}>
-              {c.nome}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={mes}
-          onChange={e => setMes(e.target.value)}
-          className="p-2 border border-gray-600 rounded bg-gray-800 text-white"
-        >
-          {mesesDisponiveis.map(m => (
-            <option key={m} value={m}>
-              {new Date(m + '-01').toLocaleString('default', { month: 'short', year: 'numeric' })}
-            </option>
-          ))}
-        </select>
+      {/* 🔍 Filtros */}
+      <div className="flex gap-2 mb-4">
+        <input
+          type="number"
+          placeholder="Mês"
+          className="w-1/3 p-2 border border-gray-600 rounded bg-gray-800 text-white text-center"
+          value={mesFiltro}
+          onChange={e => setMesFiltro(e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Ano"
+          className="w-2/3 p-2 border border-gray-600 rounded bg-gray-800 text-white text-center"
+          value={anoFiltro}
+          onChange={e => setAnoFiltro(e.target.value)}
+        />
       </div>
 
-      {/* Lista de Orçamentos */}
+      {/* 📋 Lista */}
       <div className="grid gap-3">
         {filtrados.map(o => (
-          <div key={o.id} className="p-4 border border-gray-700 rounded-xl shadow-sm bg-gray-950 hover:shadow-md transition">
+          <div
+            key={o.id}
+            className="p-3 border border-gray-700 rounded-xl bg-gray-950 shadow-sm"
+          >
             <div className="flex justify-between items-center">
               <div>
-                <div className="font-medium text-lg text-white">
-                  Orçamento {nomeCliente(o.cliente_id)}
+                <div className="font-medium text-white text-base">
+                  {nomeCliente(o.cliente_id)}
                 </div>
-                <div className="text-sm text-gray-400">Total: R$ {o.total}</div>
+                <div className="text-sm text-gray-400">
+                  Total: R$ {o.total.toFixed(2)}
+                </div>
                 <div className="text-xs text-gray-500">
-                  {o.created_at ? new Date(o.created_at).toLocaleString() : ''}
+                  {new Date(o.created_at).toLocaleString()}
                 </div>
               </div>
-
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col items-end">
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  className={`px-3 py-1 text-xs rounded-full font-semibold ${
                     o.status === 'fechado'
                       ? 'bg-green-600 text-white'
                       : 'bg-yellow-500 text-black'
@@ -345,10 +328,9 @@ export default function Orcamentos() {
                 >
                   {o.status.toUpperCase()}
                 </span>
-
                 {isAdmin() && (
                   <button
-                    className="text-sm px-3 py-1 border border-gray-600 rounded hover:bg-gray-800 transition text-gray-300"
+                    className="text-xs mt-1 text-gray-300 border border-gray-600 px-2 py-1 rounded hover:bg-gray-800"
                     onClick={() => alternarStatus(o)}
                   >
                     {o.status === 'fechado' ? 'Reabrir' : 'Fechar'}
