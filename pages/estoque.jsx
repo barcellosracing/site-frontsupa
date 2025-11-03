@@ -6,7 +6,7 @@ export default function Estoque() {
   const [form, setForm] = useState({
     nome: "",
     descricao: "",
-    preco_medio: "",
+    preco_custo: "",
     margem_lucro: "",
     foto: null,
     preview: null,
@@ -14,7 +14,7 @@ export default function Estoque() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Função de upload para o bucket "produtos"
+  // Upload da imagem para o bucket "produtos"
   async function uploadImagem(arquivo) {
     if (!arquivo) return null;
 
@@ -49,9 +49,14 @@ export default function Estoque() {
     }
   }
 
-  // Função para processar o formulário (apenas upload)
+  // Processar cadastro do produto
   async function processarProduto(e) {
     e.preventDefault();
+
+    if (!form.nome || !form.preco_custo) {
+      alert("Preencha os campos obrigatórios!");
+      return;
+    }
 
     if (!form.foto) {
       alert("Selecione uma imagem!");
@@ -59,24 +64,43 @@ export default function Estoque() {
     }
 
     setLoading(true);
+
+    // 1. Faz upload da imagem
     const fotoUrl = await uploadImagem(form.foto);
 
+    // 2. Salva no banco
     if (fotoUrl) {
-      alert("Produto processado com sucesso! URL da imagem: " + fotoUrl);
-      console.log({
-        nome: form.nome,
-        descricao: form.descricao,
-        preco_medio: form.preco_medio,
-        margem_lucro: form.margem_lucro,
-        image_url: fotoUrl,
-      });
+      try {
+        const { data, error } = await supabase
+          .from("estoque_produtos")
+          .insert([
+            {
+              nome: form.nome,
+              descricao: form.descricao,
+              preco_custo: parseFloat(form.preco_custo),
+              margem_lucro: parseFloat(form.margem_lucro || 0),
+              quantidade: 0, // padrão inicial
+              foto_url: fotoUrl,
+            },
+          ]);
+
+        if (error) {
+          console.error("Erro ao salvar produto:", error);
+          alert("Erro ao salvar produto: " + error.message);
+        } else {
+          alert("✅ Produto cadastrado com sucesso!");
+        }
+      } catch (err) {
+        console.error("Erro inesperado:", err);
+        alert("Erro inesperado ao salvar produto.");
+      }
     }
 
     // Reset do formulário
     setForm({
       nome: "",
       descricao: "",
-      preco_medio: "",
+      preco_custo: "",
       margem_lucro: "",
       foto: null,
       preview: null,
@@ -115,29 +139,36 @@ export default function Estoque() {
               className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
               required
             />
+
             <textarea
               placeholder="Descrição"
               value={form.descricao}
               onChange={(e) => setForm({ ...form, descricao: e.target.value })}
               className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
             />
+
             <input
               type="number"
-              placeholder="Preço Médio"
-              value={form.preco_medio}
-              onChange={(e) => setForm({ ...form, preco_medio: e.target.value })}
+              placeholder="Preço de Custo"
+              value={form.preco_custo}
+              onChange={(e) =>
+                setForm({ ...form, preco_custo: e.target.value })
+              }
               className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
               required
             />
+
             <input
               type="number"
               placeholder="Margem de Lucro (%)"
               value={form.margem_lucro}
-              onChange={(e) => setForm({ ...form, margem_lucro: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, margem_lucro: e.target.value })
+              }
               className="bg-gray-800 border border-gray-700 p-2 rounded-md text-white"
             />
 
-            {/* Upload de imagem */}
+            {/* Upload da imagem */}
             <div>
               <label className="block text-sm text-gray-400 mb-1">
                 Foto do produto
@@ -160,6 +191,7 @@ export default function Estoque() {
                 />
                 <FiUpload className="text-yellow-500" />
               </div>
+
               {form.preview && (
                 <img
                   src={form.preview}
@@ -174,7 +206,7 @@ export default function Estoque() {
               className="bg-yellow-500 text-black py-2 rounded-lg hover:bg-yellow-400"
               disabled={loading}
             >
-              {loading ? "Processando..." : "Processar Produto"}
+              {loading ? "Processando..." : "Cadastrar Produto"}
             </button>
           </div>
         </form>
