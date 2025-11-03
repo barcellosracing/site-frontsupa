@@ -9,7 +9,7 @@ function currentMonth() {
   return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`
 }
 
-// 🔹 Formata data para MM/AAAA
+// 🔹 Formata para MM/AAAA
 function formatMonthLabel(value) {
   const [y, m] = value.split('-')
   return `${m}/${y}`
@@ -20,14 +20,15 @@ export default function Investments() {
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('investimento')
-  const [month, setMonth] = useState(currentMonth())
+  const [month, setMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'))
+  const [year, setYear] = useState(new Date().getFullYear().toString())
   const [showForm, setShowForm] = useState(false)
   const [filterCategory, setFilterCategory] = useState('todos')
 
   // Carrega investimentos filtrados
   useEffect(() => {
     fetchInvestments()
-  }, [month, filterCategory])
+  }, [month, year, filterCategory])
 
   async function fetchInvestments() {
     const { data } = await supabase
@@ -35,7 +36,9 @@ export default function Investments() {
       .select('*')
       .order('created_at', { ascending: false })
 
-    let filtered = (data || []).filter(i => (i.created_at || '').slice(0, 7) === month)
+    const selectedPeriod = `${year}-${month}`
+
+    let filtered = (data || []).filter(i => (i.created_at || '').slice(0, 7) === selectedPeriod)
     if (filterCategory !== 'todos') {
       filtered = filtered.filter(i => i.category === filterCategory)
     }
@@ -72,10 +75,10 @@ export default function Investments() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative p-3 sm:p-4 max-w-3xl mx-auto text-white">
       {/* Cabeçalho e botão + */}
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold">Investimentos / Despesas</h2>
+        <h2 className="text-xl sm:text-2xl font-semibold text-yellow-500">Investimentos / Despesas</h2>
         {isAdmin() && (
           <button
             className="p-2 text-yellow-400 hover:text-yellow-500 rounded transition"
@@ -90,25 +93,25 @@ export default function Investments() {
       {showForm && isAdmin() && (
         <form
           onSubmit={add}
-          className="mb-6 card p-4 border border-gray-700 rounded-xl shadow-md bg-gray-950"
+          className="mb-6 border border-yellow-600 rounded-xl shadow-md bg-gray-900 p-4"
         >
-          <h3 className="text-lg font-semibold mb-3">Adicionar Item</h3>
+          <h3 className="text-lg font-semibold mb-3 text-yellow-400">Adicionar Item</h3>
           <div className="grid gap-3 sm:grid-cols-4">
             <input
-              className="p-2 border border-gray-600 rounded bg-gray-800 text-white placeholder-gray-400"
+              className="p-2 border border-gray-700 rounded bg-gray-800 text-white placeholder-gray-400"
               placeholder="Descrição"
               value={title}
               onChange={e => setTitle(e.target.value)}
             />
             <input
-              className="p-2 border border-gray-600 rounded bg-gray-800 text-white placeholder-gray-400"
+              className="p-2 border border-gray-700 rounded bg-gray-800 text-white placeholder-gray-400"
               placeholder="Valor"
               type="number"
               value={amount}
               onChange={e => setAmount(e.target.value)}
             />
             <select
-              className="p-2 border border-gray-600 rounded bg-gray-800 text-white"
+              className="p-2 border border-gray-700 rounded bg-gray-800 text-white"
               value={category}
               onChange={e => setCategory(e.target.value)}
             >
@@ -125,25 +128,38 @@ export default function Investments() {
         </form>
       )}
 
-      {/* Filtros */}
+      {/* 🔹 Filtros */}
       <div className="flex flex-wrap gap-3 mb-6 items-center">
-        <div>
-          <label className="small-muted mr-2">Mês:</label>
-          <select
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-400">Mês:</label>
+          <input
+            type="number"
+            min="1"
+            max="12"
             value={month}
-            onChange={e => setMonth(e.target.value)}
-            className="p-2 border border-gray-600 rounded bg-gray-800 text-white"
-          >
-            <option value={currentMonth()}>{formatMonthLabel(currentMonth())}</option>
-          </select>
+            onChange={e => setMonth(e.target.value.padStart(2, '0'))}
+            className="w-20 p-2 border border-gray-700 rounded bg-gray-800 text-white text-center"
+          />
         </div>
 
-        <div>
-          <label className="small-muted mr-2">Categoria:</label>
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-400">Ano:</label>
+          <input
+            type="number"
+            min="2000"
+            max="2100"
+            value={year}
+            onChange={e => setYear(e.target.value)}
+            className="w-24 p-2 border border-gray-700 rounded bg-gray-800 text-white text-center"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-400">Categoria:</label>
           <select
             value={filterCategory}
             onChange={e => setFilterCategory(e.target.value)}
-            className="p-2 border border-gray-600 rounded bg-gray-800 text-white"
+            className="p-2 border border-gray-700 rounded bg-gray-800 text-white"
           >
             <option value="todos">Todos</option>
             <option value="investimento">Investimentos</option>
@@ -157,8 +173,10 @@ export default function Investments() {
         {items.map(i => (
           <div
             key={i.id}
-            className={`card flex justify-between items-center p-3 border rounded-xl shadow-sm transition 
-              ${i.category === 'investimento' ? 'border-green-600 bg-green-950/40' : 'border-red-600 bg-red-950/40'}`}
+            className={`flex justify-between items-center p-3 border rounded-xl shadow-sm transition 
+              ${i.category === 'investimento'
+                ? 'border-green-600 bg-green-950/40'
+                : 'border-red-600 bg-red-950/40'}`}
           >
             <div>
               <div className="font-medium text-white">{i.title}</div>
@@ -179,6 +197,10 @@ export default function Investments() {
             )}
           </div>
         ))}
+
+        {items.length === 0 && (
+          <div className="text-gray-400 text-center py-6">Nenhum registro encontrado para este período.</div>
+        )}
       </div>
     </div>
   )
