@@ -730,7 +730,6 @@ export default function Estoque() {
           </button>
         </div>
       )}
-
       {/* PRODUTOS - MOBILE CARDS */}
       {tabela === "produtos" && (
         <>
@@ -740,9 +739,11 @@ export default function Estoque() {
               {produtos.map((p) => (
                 <article
                   key={p.id}
-                  className="w-full max-w-full box-border overflow-hidden bg-gray-900 border border-gray-700 rounded-xl p-3 shadow-sm flex gap-3 items-start"
+                  /* Ajuste aplicado: largura contida, centralização e altura um pouco maior para equilíbrio visual */
+                  className="w-full max-w-[95%] mx-auto box-border overflow-hidden bg-gray-900 border border-gray-700 rounded-xl p-2.5 shadow-sm flex gap-2.5 items-start"
                 >
-                  <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
+                  {/* Imagem levemente maior (altura aumentada) para dar mais presença vertical */}
+                  <div className="w-24 h-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-800 flex items-center justify-center">
                     {p.foto_url ? (
                       <img
                         src={p.foto_url}
@@ -751,29 +752,31 @@ export default function Estoque() {
                         onClick={() => setImagemAmpliada(p.foto_url)}
                       />
                     ) : (
-                      <div className="text-gray-500">—</div>
+                      <div className="text-gray-500 text-sm">—</div>
                     )}
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start gap-2">
-                      <h3 className="text-base font-medium truncate">{p.nome}</h3>
-                      <div className="text-sm flex-shrink-0">R$ {Number(p.preco_custo).toFixed(2)}</div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start gap-2">
+                        <h3 className="text-base font-medium truncate">{p.nome}</h3>
+                        <div className="text-sm flex-shrink-0">R$ {Number(p.preco_custo).toFixed(2)}</div>
+                      </div>
+
+                      <p className="text-sm text-gray-300 mt-1 line-clamp-2 break-words">{p.descricao}</p>
                     </div>
 
-                    <p className="text-sm text-gray-300 mt-1 line-clamp-2 break-words">{p.descricao}</p>
-
-                    <div className="mt-3 flex items-center justify-between gap-2">
+                    <div className="mt-2 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <div className="text-sm text-gray-400">Qtd</div>
+                        <div className="text-xs text-gray-400">Qtd</div>
                         <div className="text-sm font-medium">{p.quantidade}</div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <input
                           type="number"
                           step="0.01"
-                          className="bg-gray-800 border border-gray-700 p-2 rounded-md w-20 text-white text-sm"
+                          className="bg-gray-800 border border-gray-700 p-1.5 rounded-md w-16 text-white text-xs text-center"
                           defaultValue={p.margem_lucro ?? 0}
                           onBlur={(e) => {
                             atualizarMargem(p.id, e.target.value);
@@ -783,18 +786,18 @@ export default function Estoque() {
                         <button
                           title="Editar"
                           onClick={() => abrirEdicaoProduto(p)}
-                          className="p-2 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
+                          className="p-1.5 bg-gray-800 border border-gray-700 rounded-md hover:bg-gray-700"
                           aria-label={`Editar ${p.nome}`}
                         >
-                          <FiEdit />
+                          <FiEdit className="w-4 h-4" />
                         </button>
                         <button
                           title="Excluir"
                           onClick={() => excluirProduto(p.id)}
-                          className="p-2 bg-red-700 text-white rounded-md hover:bg-red-600"
+                          className="p-1.5 bg-red-700 text-white rounded-md hover:bg-red-600"
                           aria-label={`Excluir ${p.nome}`}
                         >
-                          <FiTrash2 />
+                          <FiTrash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
